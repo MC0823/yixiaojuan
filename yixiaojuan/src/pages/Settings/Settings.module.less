@@ -1,0 +1,379 @@
+@import '../../styles/variables.less';
+
+.container {
+  min-height: calc(100vh - 104px);
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  
+  :global(.ant-spin-dot-item) {
+    background-color: white;
+  }
+  
+  :global(.ant-spin-text) {
+    color: white;
+  }
+}
+
+.settingsCard {
+  width: 100%;
+  max-width: 700px;
+  
+  &:global(.ant-card) {
+    background: @glass-bg-light !important;
+    backdrop-filter: @glass-blur;
+    border: 1px solid @glass-border;
+    border-radius: @border-radius-xl;
+  }
+  
+  :global(.ant-card-head) {
+    border-bottom: 1px solid @glass-border;
+    background: transparent !important;
+  }
+  
+  :global(.ant-card-head-title) {
+    color: white;
+    font-weight: 600;
+  }
+  
+  :global(.ant-card-body) {
+    padding: 24px 32px;
+    background: transparent !important;
+  }
+  
+  :global(.ant-tabs-nav) {
+    margin-bottom: 24px;
+    
+    &::before {
+      border-color: @glass-border;
+    }
+  }
+  
+  :global(.ant-tabs-tab) {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      color: white;
+    }
+  }
+  
+  :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+    color: white !important;
+  }
+  
+  :global(.ant-tabs-ink-bar) {
+    background: white;
+  }
+  
+  // 表单标签和描述
+  :global(.ant-form-item-label > label) {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+  
+  :global(.ant-form-item-extra) {
+    color: rgba(255, 255, 255, 0.6) !important;
+  }
+  
+  // Switch 开关
+  :global(.ant-switch) {
+    background: rgba(255, 255, 255, 0.25);
+    
+    &.ant-switch-checked {
+      background: @primary-color;
+    }
+  }
+  
+  // Select 选择器
+  :global(.ant-select-selector) {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: @glass-border !important;
+    color: white !important;
+  }
+  
+  :global(.ant-select-arrow) {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  :global(.ant-select-selection-item) {
+    color: white !important;
+  }
+  
+  // Input 输入框
+  :global(.ant-input),
+  :global(.ant-input-password input),
+  :global(.ant-input-number-input) {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: @glass-border !important;
+    color: white !important;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
+  
+  :global(.ant-input-number) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: @glass-border;
+  }
+  
+  :global(.ant-input-prefix),
+  :global(.ant-input-suffix) {
+    color: rgba(255, 255, 255, 0.6);
+  }
+  
+  :global(.ant-input-password-icon) {
+    color: rgba(255, 255, 255, 0.6) !important;
+  }
+  
+  // Button 按钮
+  :global(.ant-btn-default) {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: @glass-border;
+    color: white;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: @glass-border-hover;
+      color: white;
+    }
+  }
+  
+  :global(.ant-btn-primary) {
+    background: @btn-primary-bg;
+    border: none;
+    color: @primary-color;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.9);
+    }
+  }
+  
+  // Divider 分割线
+  :global(.ant-divider) {
+    border-color: @glass-border;
+  }
+  
+  // Alert 提示
+  :global(.ant-alert) {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: @glass-border;
+    
+    .ant-alert-message {
+      color: white;
+    }
+    
+    .ant-alert-description {
+      color: rgba(255, 255, 255, 0.8);
+    }
+    
+    .ant-alert-icon {
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+  
+  // Descriptions 描述列表
+  :global(.ant-descriptions-title) {
+    color: white !important;
+  }
+  
+  :global(.ant-descriptions-item-label) {
+    color: rgba(255, 255, 255, 0.7) !important;
+    background: transparent !important;
+  }
+  
+  :global(.ant-descriptions-item-content) {
+    color: white !important;
+  }
+  
+  :global(.ant-descriptions-row) {
+    border-color: @glass-border !important;
+  }
+  
+  :global(.ant-descriptions-view) {
+    border-color: @glass-border !important;
+  }
+  
+  // Statistic 统计
+  :global(.ant-statistic-title) {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  :global(.ant-statistic-content-value) {
+    color: white !important;
+  }
+}
+
+// 激活部分
+.activationSection {
+  padding: 0 8px;
+}
+
+.activationStatus {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid @glass-border;
+  border-radius: @border-radius-lg;
+}
+
+.activatedIcon {
+  font-size: 40px;
+  color: @primary-color-light;
+}
+
+.inactiveIcon {
+  font-size: 40px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.statusInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  
+  :global(.ant-typography) {
+    color: white;
+  }
+  
+  :global(.ant-typography-secondary) {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+}
+
+.activationForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  :global(.ant-typography) {
+    color: rgba(255, 255, 255, 0.9);
+  }
+}
+
+.codeInput {
+  display: flex;
+  gap: 12px;
+  
+  :global(.ant-input-affix-wrapper) {
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-color: rgba(0, 0, 0, 0.8) !important;
+    
+    &:hover, &:focus, &:focus-within {
+      border-color: rgba(0, 0, 0, 0.9) !important;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    :global(.ant-input) {
+      background: transparent !important;
+      border: none !important;
+    }
+    
+    :global(.ant-input-prefix) {
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+  
+  :global(.ant-input) {
+    background: rgba(0, 0, 0, 0.6) !important;
+    border-color: rgba(0, 0, 0, 0.8) !important;
+    color: white;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: rgba(0, 0, 0, 0.9) !important;
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.2) !important;
+    }
+  }
+  
+  :global(.ant-btn-primary) {
+    background: @btn-primary-bg;
+    border: none;
+    color: @primary-color;
+  }
+}
+
+.deviceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  :global(.ant-typography) {
+    color: rgba(255, 255, 255, 0.8);
+  }
+}
+
+.deviceId {
+  margin: 0;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid @glass-border;
+  border-radius: @border-radius-base;
+  font-family: monospace;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+// 关于部分
+.aboutSection {
+  padding: 0 8px;
+}
+
+.appInfo {
+  text-align: center;
+  padding: 20px 0;
+  
+  :global(.ant-typography) {
+    color: white;
+  }
+  
+  :global(.ant-typography-secondary) {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+}
+
+.versionTag {
+  margin-top: 8px;
+  margin-left: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: @glass-border;
+  color: white;
+}
+
+// 同步部分
+.syncSection {
+  padding: 0 8px;
+}
+
+.syncStats {
+  margin-bottom: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid @glass-border;
+  border-radius: @border-radius-lg;
+  text-align: center;
+  
+  :global(.ant-statistic-title) {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+  }
+  
+  :global(.ant-statistic-content) {
+    font-size: 24px;
+    color: white;
+  }
+}

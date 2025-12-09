@@ -1,0 +1,26 @@
+@import '../../styles/variables.less';
+
+.layout {
+  min-height: 100vh;
+  background: transparent !important;
+  
+  // 覆盖所有内层Layout的白色背景
+  :global(.ant-layout) {
+    background: transparent !important;
+  }
+  
+  :global(.ant-layout-content) {
+    background: transparent !important;
+  }
+  
+  :global(.ant-layout-sider) {
+    background: transparent !important;
+  }
+}
+
+.content {
+  margin: 24px;
+  padding: 0;
+  background: transparent !important;
+  min-height: calc(100vh - 104px);
+}

@@ -1,0 +1,28 @@
+# 依赖
+node_modules/
+
+# 构建产物
+dist/
+dist-electron/
+
+# 日志
+*.log
+npm-debug.log*
+
+# 编辑器
+.vscode/
+.idea/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量（包含敏感信息时）
+.env.local
+.env.*.local
+
+# 打包产物
+release/
+*.exe
+*.dmg
+*.zip

@@ -1,0 +1,125 @@
+/**
+ * 通用样式 Mixins
+ * 可复用的样式片段
+ */
+@import './variables.less';
+
+// ===== 卡片样式 =====
+.card-base() {
+  background: @bg-container;
+  border: 1px solid @border-color;
+  border-radius: @border-radius-lg;
+  transition: all @transition-base;
+}
+
+.card-hover() {
+  &:hover {
+    border-color: @primary-color;
+    box-shadow: @shadow-primary;
+    transform: translateY(-2px);
+  }
+}
+
+.card-glass() {
+  background: @glass-bg;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @border-color;
+  border-radius: @border-radius-lg;
+}
+
+// ===== 按钮样式 =====
+.btn-primary() {
+  background: @primary-color;
+  border-color: @primary-color;
+  
+  &:hover {
+    background: @primary-color-hover !important;
+    border-color: @primary-color-hover !important;
+  }
+}
+
+.btn-secondary() {
+  background: @primary-color-dark;
+  border-color: @primary-color-dark;
+  
+  &:hover {
+    background: darken(@primary-color-dark, 10%) !important;
+    border-color: darken(@primary-color-dark, 10%) !important;
+  }
+}
+
+// ===== 布局样式 =====
+.flex-center() {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between() {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column() {
+  display: flex;
+  flex-direction: column;
+}
+
+// ===== 文字样式 =====
+.text-ellipsis() {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-ellipsis-multi(@lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: @lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ===== 滚动条样式 =====
+.scrollbar-thin() {
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: fade(@primary-color, 30%);
+    border-radius: 3px;
+    
+    &:hover {
+      background: fade(@primary-color, 50%);
+    }
+  }
+}
+
+// ===== 动画样式 =====
+.fade-in() {
+  animation: fadeIn @transition-base;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// ===== 选中状态 =====
+.selection-highlight() {
+  background: fade(@primary-color, 20%);
+  border-color: @primary-color;
+}

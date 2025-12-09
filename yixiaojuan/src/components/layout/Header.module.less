@@ -1,0 +1,76 @@
+@import '../../styles/variables.less';
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 24px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: @glass-blur;
+  border-bottom: 1px solid @glass-border;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoIcon {
+  font-size: 26px;
+}
+
+.logoText {
+  font-size: 18px;
+  font-weight: 600;
+  color: white;
+  letter-spacing: 1px;
+}
+
+.settingsBtn {
+  background: transparent !important;
+  border: none !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin-left: 8px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.glassBtn {
+  background: @btn-glass-bg !important;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @btn-glass-border !important;
+  color: white !important;
+  
+  &:hover {
+    background: @btn-glass-hover-bg !important;
+    border-color: @glass-border-hover !important;
+  }
+}
+
+.primaryBtn {
+  background: @btn-primary-bg !important;
+  backdrop-filter: @glass-blur;
+  border: none !important;
+  color: @primary-color !important;
+  font-weight: 500;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: @primary-color-dark !important;
+  }
+}

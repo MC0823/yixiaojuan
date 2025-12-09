@@ -1,0 +1,71 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  gap: 20px;
+}
+
+.welcomeCard {
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+  background: rgba(250, 252, 248, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(135, 189, 118, 0.3);
+  border-radius: 12px;
+  
+  :global(.ant-card-body) {
+    padding: 40px;
+  }
+}
+
+.icon {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+
+.startBtn {
+  height: 44px;
+  min-width: 140px;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.featureRow {
+  width: 100%;
+  max-width: 600px;
+}
+
+.featureCard {
+  text-align: center;
+  background: rgba(250, 252, 248, 0.9);
+  border: 1px solid rgba(135, 189, 118, 0.2);
+  transition: all 0.3s ease;
+  
+  :global(.ant-card-body) {
+    padding: 20px 16px;
+  }
+  
+  &:hover {
+    border-color: #87bd76;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(135, 189, 118, 0.15);
+  }
+}
+
+.statusCard {
+  width: 100%;
+  max-width: 600px;
+  background: rgba(250, 252, 248, 0.9);
+  border: 1px solid rgba(135, 189, 118, 0.2);
+  
+  :global(.ant-card-body) {
+    padding: 16px 24px;
+  }
+  
+  :global(.ant-statistic-title) {
+    font-size: 12px;
+    color: #999;
+  }
+}

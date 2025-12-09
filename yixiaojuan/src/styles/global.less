@@ -1,0 +1,318 @@
+/**
+ * 全局样式
+ */
+@import './variables.less';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: @font-size-base;
+  color: white;
+  background: @gradient-primary !important;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  background: transparent;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: fade(@primary-color, 40%);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: fade(@primary-color, 60%);
+}
+
+/* 选中文字颜色 */
+::selection {
+  background: fade(@primary-color, 30%);
+  color: @text-primary;
+}
+
+/* 毛玻璃效果基础类 */
+.glass-effect {
+  background: @glass-bg;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @border-color;
+  border-radius: @border-radius-lg;
+}
+
+/* 卡片通用样式 */
+.card-primary {
+  background: @bg-container;
+  border: 1px solid @border-color;
+  border-radius: @border-radius-lg;
+  transition: all @transition-base;
+  
+  &:hover {
+    border-color: @primary-color;
+    box-shadow: @shadow-primary;
+  }
+}
+
+/* 过渡动画 */
+.fade-enter {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: all @transition-base;
+}
+
+.fade-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all @transition-base;
+}
+
+/* Ant Design 全局覆盖 */
+.ant-btn-primary {
+  background: @primary-color;
+  border-color: @primary-color;
+  
+  &:hover {
+    background: @primary-color-hover !important;
+    border-color: @primary-color-hover !important;
+  }
+}
+
+.ant-message-notice-content {
+  background: @bg-elevated;
+  border: 1px solid @border-color-light;
+  border-radius: @border-radius-base;
+}
+
+/* 轻量级保存提示 - 无边框只有文字 */
+.light-message {
+  .ant-message-notice-content {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 8px 12px;
+    
+    .ant-message-success {
+      .anticon {
+        display: none;
+      }
+    }
+    
+    span {
+      color: rgba(255, 255, 255, 0.75);
+      font-size: 13px;
+    }
+  }
+}
+
+/* Select 下拉框全局样式 */
+.ant-select-dropdown {
+  background: rgba(30, 100, 90, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: @border-radius-base;
+  
+  .ant-select-item {
+    color: white;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  .ant-select-item-option-selected {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white;
+  }
+  
+  .ant-select-item-option-active {
+    background: rgba(255, 255, 255, 0.15) !important;
+  }
+}
+
+/* Modal 弹窗全局样式 */
+.ant-modal-content {
+  background: rgba(30, 100, 90, 0.95) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: @border-radius-xl;
+  
+  .ant-modal-header {
+    background: transparent;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    
+    .ant-modal-title {
+      color: white;
+    }
+  }
+  
+  .ant-modal-body {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .ant-modal-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+  }
+  
+  .ant-modal-close {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      color: white;
+    }
+  }
+}
+
+.ant-modal-confirm-body {
+  .ant-modal-confirm-title {
+    color: white !important;
+  }
+  
+  .ant-modal-confirm-content {
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+}
+
+/* Popover 气泡全局样式 */
+.ant-popover-inner {
+  background: rgba(30, 100, 90, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: @border-radius-base;
+}
+
+.ant-popover-arrow::before {
+  background: rgba(30, 100, 90, 0.95) !important;
+}
+
+/* Dropdown 下拉菜单全局样式 */
+.ant-dropdown-menu {
+  background: rgba(30, 100, 90, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: @border-radius-base;
+  
+  .ant-dropdown-menu-item {
+    color: white;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  .ant-dropdown-menu-item-danger {
+    color: #ff6b6d;
+    
+    &:hover {
+      background: rgba(255, 77, 79, 0.15);
+    }
+  }
+}
+
+/* Tooltip 提示全局样式 */
+.ant-tooltip-inner {
+  background: rgba(30, 100, 90, 0.95) !important;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.ant-tooltip-arrow::before {
+  background: rgba(30, 100, 90, 0.95) !important;
+}
+
+/* Card 卡片全局样式 - 透明背景 */
+.ant-card {
+  background: transparent;
+  
+  .ant-card-head {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  .ant-card-body {
+    background: transparent;
+  }
+}
+
+/* Layout 布局全局样式 - 透明背景 */
+.ant-layout {
+  background: transparent !important;
+}
+
+.ant-layout-content {
+  background: transparent !important;
+}
+
+.ant-layout-sider {
+  background: transparent !important;
+}
+
+/* Upload 上传组件全局样式 */
+.ant-upload-wrapper {
+  .ant-upload-drag {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.4) !important;
+    }
+  }
+  
+  .ant-upload-drag-container {
+    background: transparent !important;
+  }
+  
+  .ant-upload-text {
+    color: white !important;
+  }
+  
+  .ant-upload-hint {
+    color: rgba(255, 255, 255, 0.7) !important;
+  }
+}
+
+/* Space 组件透明 */
+.ant-space {
+  background: transparent !important;
+}
+
+/* 强制所有容器透明 - 全局覆盖 */
+.ant-upload-wrapper,
+.ant-upload,
+.ant-upload-drag,
+.ant-upload-btn,
+.ant-upload-drag-container {
+  background: transparent !important;
+}
+
+/* Card 内部元素透明 */
+.ant-card,
+.ant-card-bordered {
+  background: transparent !important;
+}

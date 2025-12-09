@@ -1,0 +1,1336 @@
+@import '../../styles/variables.less';
+
+// 主容器 - 全屏渐变背景
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: @gradient-primary;
+  overflow: hidden;
+}
+
+// 顶部栏 - 统一单行布局
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  height: 56px;
+  padding: 0 20px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: @glass-blur;
+  border-bottom: 1px solid @glass-border;
+  flex-shrink: 0;
+  
+  .headerLeft {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .headerCenter {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .headerRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .logoIcon {
+      font-size: 24px;
+    }
+    
+    .logoText {
+      font-size: 18px;
+      font-weight: 600;
+      color: white;
+      letter-spacing: 1px;
+    }
+  }
+  
+  .settingsBtn {
+    background: transparent !important;
+    border: none !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-left: 4px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1) !important;
+      color: white !important;
+    }
+  }
+  
+  .saveHint {
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 13px;
+    margin-left: 12px;
+    animation: fadeInOut 1.5s ease-in-out;
+  }
+  
+  @keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  
+  .divider {
+    width: 1px;
+    height: 20px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 4px;
+  }
+  
+  .courseTitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .questionNav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 6px 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+  }
+}
+
+// 统一工具按钮样式
+.toolBtn {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border-radius: 6px !important;
+  height: 34px !important;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+  }
+  
+  :global(.anticon) {
+    font-size: 14px;
+  }
+}
+
+// 主按钮样式（新建课件）
+.primaryBtn {
+  background: @btn-primary-bg !important;
+  border: none !important;
+  color: @primary-color !important;
+  font-weight: 500;
+  border-radius: 6px !important;
+  height: 34px !important;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: @primary-color-dark !important;
+  }
+}
+
+// 主内容区
+.main {
+  display: flex;
+  flex: 1;
+  padding: 16px 24px 24px;
+  gap: 24px;
+  overflow: hidden;
+}
+
+// 左侧试卷列表区
+.leftPanel {
+  width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+// 玻璃态卡片通用样式
+.glassCard {
+  background: @glass-bg-light;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @glass-border;
+  border-radius: @border-radius-xl;
+  transition: all @transition-base;
+  
+  &:hover {
+    background: @glass-bg-medium;
+    border-color: @glass-border-hover;
+  }
+}
+
+// 新建课件按钮
+.createBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 52px;
+  font-size: 16px;
+  font-weight: 500;
+  color: white;
+  cursor: pointer;
+  
+  .icon {
+    font-size: 20px;
+  }
+}
+
+// 课件列表容器
+.coursewareList {
+  flex: 0 0 auto;
+  max-height: 45%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  .listHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    
+    .title {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .refreshBtn {
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        color: white;
+      }
+    }
+    
+    .actionIcon {
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-left: 10px;
+      font-size: 14px;
+      
+      &:hover {
+        color: white;
+      }
+    }
+  }
+  
+  .listContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 12px 12px;
+    
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+    }
+  }
+}
+
+// 题目列表容器
+.questionList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  .listHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 10px;
+    
+    .title {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .questionCount {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+  
+  .listContent {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px 8px;
+    
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+    }
+  }
+}
+
+// 题目项
+.questionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 4px;
+  border-radius: @border-radius-base;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: @glass-bg-light;
+    border-color: @glass-border;
+  }
+  
+  &.active {
+    background: @glass-bg-medium;
+    border-color: @glass-border-hover;
+    
+    .questionNumber {
+      background: white;
+      color: @primary-color;
+    }
+    
+    .questionPreview {
+      color: white;
+    }
+  }
+  
+  .questionNumber {
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  
+  .questionPreview {
+    flex: 1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// 课件项
+.coursewareItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: @border-radius-lg;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+    transform: translateX(2px);
+  }
+  
+  &.active {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    
+    .itemIcon {
+      color: white;
+    }
+    
+    .itemTitle {
+      font-weight: 600;
+    }
+  }
+  
+  .itemIcon {
+    font-size: 22px;
+    color: rgba(255, 255, 255, 0.85);
+    flex-shrink: 0;
+  }
+  
+  .itemInfo {
+    flex: 1;
+    min-width: 0;
+    
+    .itemTitle {
+      font-size: 14px;
+      font-weight: 500;
+      color: white;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+      cursor: default;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
+    
+    .editInput {
+      background: rgba(255, 255, 255, 0.15) !important;
+      border: 1px solid rgba(255, 255, 255, 0.3) !important;
+      color: white !important;
+      font-size: 13px;
+      border-radius: 4px;
+      
+      &:focus {
+        border-color: rgba(255, 255, 255, 0.5) !important;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1) !important;
+      }
+    }
+    
+    .itemMeta {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 3px;
+    }
+  }
+  
+  .itemActions {
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  
+  &:hover .itemActions,
+  &.active .itemActions {
+    opacity: 1;
+  }
+  
+  &:hover .itemActions {
+    opacity: 1;
+  }
+}
+
+// 空状态
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  
+  .emptyIcon {
+    font-size: 48px;
+    color: rgba(255, 255, 255, 0.3);
+    margin-bottom: 16px;
+  }
+  
+  .emptyText {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+// 右侧编辑面板区
+.rightPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// 编辑面板容器
+.editorContainer {
+  flex: 1;
+  background: @glass-bg-light;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @glass-border;
+  border-radius: @border-radius-xl;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+// 编辑内容区 - 单栏布局
+.editorContent {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  padding: 0;
+}
+
+// 画布区域
+.canvasArea {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.1);
+  overflow: auto;
+}
+
+// OCR文本面板
+.textPanel {
+  width: 300px;
+  background: @glass-bg-weak;
+  border-left: 1px solid @glass-border;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  
+  .panelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid @glass-border;
+    
+    .panelTitle {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    :global(.ant-btn) {
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      
+      &:hover {
+        color: #ff4d4f;
+      }
+    }
+  }
+  
+  .textEditor {
+    flex: 1;
+    margin: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 8px;
+    color: white;
+    resize: none;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+// 欢迎占位
+.welcomePlaceholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: @glass-blur;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: @border-radius-xl;
+  
+  .welcomeIcon {
+    font-size: 72px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 20px;
+  }
+  
+  .welcomeTitle {
+    font-size: 20px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 8px;
+  }
+  
+  .welcomeDesc {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  :global(.ant-spin-dot-item) {
+    background-color: white;
+  }
+}
+
+// 加载状态
+.loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 按钮样式覆盖
+.headerBtn {
+  background: @btn-glass-bg !important;
+  border: 1px solid @btn-glass-border !important;
+  color: white !important;
+  
+  &:hover {
+    background: @btn-glass-hover-bg !important;
+    border-color: @glass-border-active !important;
+  }
+}
+
+.primaryBtn {
+  background: @btn-primary-bg !important;
+  border: none !important;
+  color: @primary-color !important;
+  font-weight: 500;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: @primary-color-dark !important;
+  }
+}
+
+// 题目详情编辑面板 - 占满宽度
+.questionDetailPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  
+  .panelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    flex-shrink: 0;
+    
+    .panelHeaderLeft {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .panelTitle {
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+    }
+    
+    .questionTypeTag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      background: rgba(46, 196, 182, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+    }
+  }
+  
+  .questionContent {
+    flex: 1;
+    padding: 16px 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    
+    .questionEditor {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid @glass-border;
+      border-radius: 10px;
+      color: white;
+      margin-bottom: 12px;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 12px;
+      flex-shrink: 0;
+      
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.5);
+      }
+      
+      &:focus {
+        border-color: @glass-border-hover;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
+}
+
+// 答案输入区域（填空题/简答题/解答题）
+.answerInputSection {
+  margin-bottom: 20px;
+  
+  .sectionTitle {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 12px;
+  }
+  
+  .answerTextarea {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 8px;
+    color: white;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+// 选项编辑区 - 自适应布局
+.optionsSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  
+  .sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    
+    .sectionLabel {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      flex-shrink: 0;
+      margin-bottom: 0;  // 覆盖默认的 margin-bottom
+    }
+  }
+  
+  .sectionTitle {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .sectionTip {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  .optionsList {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+  
+  .addOptionBtn {
+    margin-top: 8px;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px dashed rgba(255, 255, 255, 0.4) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+    border-radius: 6px;
+    height: 32px;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.18) !important;
+      border-color: rgba(255, 255, 255, 0.6) !important;
+      color: white !important;
+    }
+  }
+}
+
+// 选项卡片 - 紧凑布局
+.optionItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: @glass-border;
+  }
+  
+  &.optionSelected {
+    background: rgba(77, 124, 62, 0.3);
+    border-color: @success-color;
+    
+    .optionCheck {
+      background: @success-color;
+      color: white;
+    }
+    
+    .optionLabel {
+      color: @success-color;
+      font-weight: 600;
+    }
+  }
+  
+  .optionCheck {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    color: transparent;
+    font-size: 10px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  
+  .optionLabel {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+    width: 20px;
+  }
+  
+  .optionContent {
+    flex: 1;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.4;
+  }
+  
+  .optionInput {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 6px;
+    color: white;
+    font-size: 13px;
+    padding: 6px 10px;
+    height: 32px;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  :global(.ant-btn-text) {
+    color: rgba(255, 255, 255, 0.5);
+    padding: 4px;
+    
+    &:hover {
+      color: #ff4d4f;
+      background: transparent;
+    }
+  }
+}
+
+// 答案显示区
+// 正确答案显示区 - 优化样式
+.answerDisplay {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, rgba(46, 196, 182, 0.15), rgba(77, 124, 62, 0.2));
+  border: none;
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-size: 13px;
+  margin-top: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  
+  .answerIcon {
+    font-size: 14px;
+    color: @success-color;
+  }
+  
+  .answerLabel {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .answerValue {
+    color: @success-color;
+    font-weight: 600;
+  }
+}
+
+// 题型切换区
+.typeSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+  
+  .sectionLabel {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+    margin-bottom: 0;  // 覆盖默认的 margin-bottom
+  }
+  
+  .typeButtons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .typeBtn {
+    border-radius: 6px;
+    font-size: 12px;
+    
+    &:not(:global(.ant-btn-primary)) {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: @glass-border;
+      color: rgba(255, 255, 255, 0.85);
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.18);
+        border-color: @glass-border-hover;
+        color: white;
+      }
+    }
+  }
+}
+
+// 题干编辑区 - 水平布局
+.stemSection {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+  
+  .sectionLabel {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+    margin-bottom: 0;
+    padding-top: 8px;  // 与输入框对齐
+  }
+  
+  .questionEditor {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 10px;
+    color: white;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 12px;
+    margin-bottom: 0;  // 移除默认的margin
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+// 通用标签样式
+.sectionLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  display: block;
+  margin-bottom: 8px;
+}
+
+// 可编辑选项样式
+.optionEditable {
+  cursor: default;
+  
+  .optionCheck {
+    cursor: pointer;
+    transition: all 0.2s;
+    
+    &:hover {
+      background: rgba(77, 124, 62, 0.5);
+      transform: scale(1.1);
+    }
+    
+    &.checked {
+      background: @success-color;
+      color: white;
+    }
+  }
+}
+
+// 删除选项按钮
+.optionDeleteBtn {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: 1;
+  }
+}
+
+// 填空题答案区
+.fillBlankSection {
+  margin-top: 16px;
+  flex-shrink: 0;
+  
+  .answerInput {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    padding: 10px 12px;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+// 解答题答案区
+.shortAnswerSection {
+  margin-top: 16px;
+  flex-shrink: 0;
+  
+  .answerTextarea {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid @glass-border;
+    border-radius: 8px;
+    color: white;
+    font-size: 14px;
+    padding: 12px;
+    
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    &:focus {
+      border-color: @glass-border-hover;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+// 预览面板
+.previewPanel {
+  width: 45%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid @glass-border;
+  
+  .panelHeader {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid @glass-border;
+    
+    .panelTitle {
+      font-size: 15px;
+      font-weight: 600;
+      color: white;
+    }
+  }
+  
+  .previewContent {
+    flex: 1;
+    padding: 16px 20px;
+    overflow-y: auto;
+  }
+  
+  .questionImage {
+    margin-bottom: 16px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .imageMask {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 14px;
+    }
+  }
+  
+  .questionPreview {
+    .questionText {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      line-height: 1.8;
+      margin-bottom: 16px;
+      white-space: pre-wrap;
+    }
+  }
+}
+
+// 选项预览
+.optionsPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.optionPreviewItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+  
+  &.isAnswer {
+    background: rgba(77, 124, 62, 0.25);
+    border: 1px solid @success-color;
+    
+    .optionPreviewLabel {
+      color: @success-color;
+      font-weight: 600;
+    }
+    
+    .checkIcon {
+      color: @success-color;
+      margin-left: auto;
+    }
+  }
+  
+  .optionPreviewLabel {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    flex-shrink: 0;
+  }
+  
+  .optionPreviewContent {
+    flex: 1;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.5;
+  }
+  
+  .checkIcon {
+    font-size: 14px;
+  }
+}
+
+// 正确答案显示
+.correctAnswer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(77, 124, 62, 0.25);
+  border: 1px solid @success-color;
+  border-radius: 8px;
+  
+  .answerLabel {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  .answerValue {
+    font-size: 14px;
+    font-weight: 600;
+    color: @success-color;
+  }
+}
+
+// ========== 上传模式样式 ==========
+
+.uploadPanel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.uploadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.uploadDragger {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 2px dashed rgba(255, 255, 255, 0.3) !important;
+  border-radius: 12px !important;
+  
+  &:hover {
+    border-color: rgba(255, 255, 255, 0.5) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+  }
+  
+  :global(.ant-upload) {
+    padding: 40px 20px;
+  }
+}
+
+.uploadImageList {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 4px;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
+}
+
+.uploadImageItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid @glass-border;
+  border-radius: 8px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: @glass-border-hover;
+  }
+}
+
+.imageIndex {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: @primary-color;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.imageThumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.imageInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.imageName {
+  font-weight: 500;
+}
+
+.imageActions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.uploadActions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding-top: 16px;
+  margin-top: 16px;
+}
