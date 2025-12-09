@@ -416,7 +416,30 @@ function WorkspacePage() {
       }
     })
   }, [currentQuestion, currentIndex, questions])
-  
+
+  // 添加新题目
+  const handleAddQuestion = useCallback(async () => {
+    if (!window.electronAPI || !selectedId) return
+
+    try {
+      const newOrderIndex = questions.length
+      const result = await window.electronAPI.question.create({
+        courseware_id: selectedId,
+        order_index: newOrderIndex,
+        type: 'shortAnswer',
+        ocr_text: ''
+      })
+
+      if (result.success && result.data) {
+        setQuestions([...questions, result.data])
+        setCurrentIndex(questions.length)
+        message.success('添加成功')
+      }
+    } catch (error) {
+      message.error('添加失败')
+    }
+  }, [selectedId, questions])
+
   // 更新题目内容
   const handleOcrTextChange = useCallback((value: string) => {
     setOcrText(value)
@@ -473,14 +496,35 @@ function WorkspacePage() {
         i === currentIndex ? { ...q, type: newType } : q
       ))
       
-      // 如果是判断题，自动设置选项
+      // 根据新题型重置状态
       if (newType === 'trueFalse') {
+        // 判断题：设置固定选项
         setOptions([
           { label: 'A', content: '正确' },
           { label: 'B', content: '错误' }
         ])
         // 如果原答案不是A或B，清空答案
         if (answer && !['A', 'B'].includes(answer)) {
+          setAnswer('')
+        }
+      } else if (newType === 'fillBlank' || newType === 'shortAnswer') {
+        // 填空题/解答题：清空选项和答案
+        setOptions([])
+        setAnswer('')
+      } else if (newType === 'choice' || newType === 'multiChoice') {
+        // 选择题/多选题：如果没有选项，初始化默认选项
+        if (options.length === 0 || (options.length === 2 && options[0]?.content === '正确')) {
+          setOptions([
+            { label: 'A', content: '' },
+            { label: 'B', content: '' },
+            { label: 'C', content: '' },
+            { label: 'D', content: '' }
+          ])
+        }
+        // 如果原答案不是选项标签，清空
+        const validLabels = 'ABCDEFGHIJ'.split('')
+        const answerChars = answer.split('')
+        if (!answerChars.every(c => validLabels.includes(c))) {
           setAnswer('')
         }
       }
@@ -491,7 +535,7 @@ function WorkspacePage() {
       console.error('切换题型失败:', error)
       message.error('切换题型失败')
     }
-  }, [currentQuestion, currentIndex, answer, markChanged])
+  }, [currentQuestion, currentIndex, answer, options, markChanged])
   
   // 添加选项
   const handleAddOption = useCallback(() => {
@@ -1214,15 +1258,25 @@ function WorkspacePage() {
                         </span>
                       )}
                     </div>
-                    <Button 
-                      size="small"
-                      type="text"
-                      danger
-                      icon={<DeleteOutlined />}
-                      onClick={handleDeleteQuestion}
-                    >
-                      删除
-                    </Button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<PlusOutlined />}
+                        onClick={handleAddQuestion}
+                      >
+                        添加
+                      </Button>
+                      <Button
+                        size="small"
+                        type="text"
+                        danger
+                        icon={<DeleteOutlined />}
+                        onClick={handleDeleteQuestion}
+                      >
+                        删除
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className={styles.questionContent}>
@@ -1262,11 +1316,10 @@ function WorkspacePage() {
                       />
                     </div>
                     
-                    {/* 选项编辑区 - 选择题/多选题/判断题 */}
+                    {/* 选项编辑区 - 仅选择题/多选题/判断题显示 */}
                     {(currentQuestion?.type === 'choice' || 
                       currentQuestion?.type === 'multiChoice' || 
-                      currentQuestion?.type === 'trueFalse' ||
-                      options.length > 0) && (
+                      currentQuestion?.type === 'trueFalse') && (
                       <div className={styles.optionsSection}>
                         <div className={styles.sectionHeader}>
                           <span className={styles.sectionLabel}>
@@ -1325,7 +1378,9 @@ function WorkspacePage() {
                         </div>
                         {answer && (
                           <div className={styles.answerDisplay}>
-                            <CheckOutlined className={styles.answerIcon} />
+                            <div className={styles.answerIconWrapper}>
+                              <CheckOutlined className={styles.answerIcon} />
+                            </div>
                             <span className={styles.answerLabel}>正确答案</span>
                             <span className={styles.answerValue}>{answer}</span>
                           </div>

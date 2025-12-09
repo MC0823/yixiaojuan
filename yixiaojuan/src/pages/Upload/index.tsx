@@ -11,6 +11,7 @@ import { recognizeImage } from '../../services/ocrService'
 import { QuestionClassifier, type QuestionType } from '../../utils/questionClassifier'
 import { ErrorHandler } from '../../utils/errorHandler'
 import { useImageUpload } from '../../components/upload'
+import { CoursewarePreviewModal } from '../../components/courseware/CoursewarePreviewModal'
 import styles from './Upload.module.less'
 
 const { Title, Paragraph, Text } = Typography
@@ -41,6 +42,7 @@ function UploadPage() {
   const [isCreating, setIsCreating] = useState(false)
   const [coursewareTitle, setCoursewareTitle] = useState('')
   const [showTitleModal, setShowTitleModal] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   /**
    * OCR识别单张图片（在渲染进程中运行）
@@ -117,21 +119,39 @@ function UploadPage() {
   }, [images, handleOcrSingle])
 
   /**
-   * 创建课件
+   * 处理预览确认
    */
-  const handleCreateCourseware = useCallback(async () => {
-    if (images.length === 0) {
+  const handlePreviewConfirm = useCallback(async (mode: 'merge' | 'separate', selectedGroups?: string[]) => {
+    setShowPreviewModal(false)
+
+    if (mode === 'merge') {
+      setShowTitleModal(true)
+    } else if (selectedGroups && selectedGroups.length > 0) {
+      for (const groupName of selectedGroups) {
+        setCoursewareTitle(groupName)
+        const groupImages = images.filter(img => img.sourceImage === groupName)
+        await createSingleCourseware(groupName, groupImages)
+      }
+      message.success(`成功创建 ${selectedGroups.length} 个课件`)
+      navigate('/')
+    }
+  }, [images])
+
+  /**
+   * 创建单个课件
+   */
+  const createSingleCourseware = useCallback(async (title: string, coursewareImages: typeof images) => {
+    if (coursewareImages.length === 0) {
       message.warning('请先添加图片')
       return
     }
-    
-    if (!coursewareTitle.trim()) {
+
+    if (!title.trim()) {
       message.warning('请输入课件名称')
       return
     }
-    
+
     setIsCreating(true)
-    setShowTitleModal(false)
     
     try {
       if (!window.electronAPI) {
@@ -139,28 +159,28 @@ function UploadPage() {
         return
       }
       
-      console.log('[Upload] 开始创建课件, 图片数量:', images.length)
-      
+      console.log('[Upload] 开始创建课件, 图片数量:', coursewareImages.length)
+
       // 1. 创建课件
       const coursewareResult = await window.electronAPI.courseware.create({
-        title: coursewareTitle.trim(),
+        title: title.trim(),
         status: 'draft'
       })
-      
+
       if (!coursewareResult.success || !coursewareResult.data) {
         throw new Error(coursewareResult.error || '创建课件失败')
       }
-      
+
       const coursewareId = coursewareResult.data.id
       console.log('[Upload] 课件创建成功, ID:', coursewareId)
-      
+
       // 2. 保存图片到课件目录
       // 区分两种情况：有完整路径的图片（系统对话框选择）和只有 base64 的图片（拖拽上传）
       const savedPaths: string[] = []
-      
-      for (let i = 0; i < images.length; i++) {
-        const img = images[i]
-        console.log(`[Upload] 处理图片 ${i + 1}/${images.length}:`, img.name, 'path:', img.path, 'hasBase64:', !!img.base64Data)
+
+      for (let i = 0; i < coursewareImages.length; i++) {
+        const img = coursewareImages[i]
+        console.log(`[Upload] 处理图片 ${i + 1}/${coursewareImages.length}:`, img.name, 'path:', img.path, 'hasBase64:', !!img.base64Data)
         
         // 判断是否是完整路径（包含路径分隔符）
         const isFullPath = img.path.includes('/') || img.path.includes('\\')
@@ -198,7 +218,7 @@ function UploadPage() {
       console.log('[Upload] 所有图片保存完成, 路径:', savedPaths)
       
       // 3. 创建题目记录（使用服务端解析的数据）
-      const questions = images.map((img, index) => {
+      const questions = coursewareImages.map((img, index) => {
         // 优先使用服务端解析的题干和选项
         const stem = img.stem || img.ocrText || ''
         const options = img.options || []
@@ -227,17 +247,25 @@ function UploadPage() {
       }
       
       message.success('课件创建成功！')
-      
+
       // 4. 跳转到主页并选中课件
       navigate(`/?coursewareId=${coursewareId}`)
-      
+
     } catch (error) {
       console.error('[Upload] 创建课件失败:', error)
       message.error('创建课件失败: ' + (error instanceof Error ? error.message : String(error)))
     } finally {
       setIsCreating(false)
     }
-  }, [images, coursewareTitle, navigate])
+  }, [navigate])
+
+  /**
+   * 合并模式：创建单个课件包含所有图片
+   */
+  const handleCreateCourseware = useCallback(async () => {
+    setShowTitleModal(false)
+    await createSingleCourseware(coursewareTitle, images)
+  }, [coursewareTitle, images, createSingleCourseware])
 
   /**
    * Ant Upload 拖拽上传配置
@@ -399,11 +427,11 @@ function UploadPage() {
             >
               批量OCR识别
             </Button>
-            <Button 
+            <Button
               type="primary"
               icon={<FileAddOutlined />}
-              onClick={() => setShowTitleModal(true)}
-              disabled={images.length === 0 || images.some(img => !img.ocrText)}
+              onClick={() => setShowPreviewModal(true)}
+              disabled={images.length === 0}
               loading={isCreating}
             >
               创建课件
@@ -422,6 +450,14 @@ function UploadPage() {
         }}
       />
       
+      {/* 课件预览和分组选择 */}
+      <CoursewarePreviewModal
+        visible={showPreviewModal}
+        images={images}
+        onConfirm={handlePreviewConfirm}
+        onCancel={() => setShowPreviewModal(false)}
+      />
+
       {/* 课件名称弹窗 */}
       <Modal
         title="创建课件"
