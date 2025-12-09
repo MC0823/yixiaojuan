@@ -14,6 +14,9 @@ export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }:
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
 
   const groups = useMemo(() => {
+    console.log('[CoursewarePreviewModal] 开始分组, 图片数量:', images.length)
+    console.log('[CoursewarePreviewModal] 图片sourceImage:', images.map(img => ({ name: img.name, sourceImage: img.sourceImage })))
+
     const groupMap = new Map<string, UploadImageItem[]>()
     images.forEach(img => {
       const group = img.sourceImage || '未分组'
@@ -24,11 +27,11 @@ export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }:
     })
     const result = Array.from(groupMap.entries()).map(([name, items]) => ({ name, items, count: items.length }))
     console.log('[CoursewarePreviewModal] 分组结果:', result.map(g => ({ name: g.name, count: g.count })))
+    console.log('[CoursewarePreviewModal] hasMultipleGroups:', result.length > 1)
     return result
   }, [images])
 
   const hasMultipleGroups = groups.length > 1
-  console.log('[CoursewarePreviewModal] hasMultipleGroups:', hasMultipleGroups, 'groups.length:', groups.length)
 
   const handleConfirm = () => {
     if (mode === 'separate' && hasMultipleGroups && selectedGroups.length === 0) {

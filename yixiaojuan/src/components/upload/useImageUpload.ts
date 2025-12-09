@@ -4,7 +4,7 @@
  * 状态存储在全局 Store 中，支持切换页面后保持
  */
 import { useCallback, useMemo } from 'react'
-import { message, notification } from 'antd'
+import { message } from 'antd'
 import { paddleOcrSplit, checkOcrServerHealth, eraseHandwriting, correctImage, ensureOcrServiceReady } from '../../services/paddleOcrService'
 import { QuestionSplitter } from '../../utils/questionSplitter'
 import { useUploadStore } from '../../stores'
@@ -322,13 +322,6 @@ export function useImageUpload(): UseImageUploadReturn {
       
       completeTask(taskId)
       message.success(`成功切分出 ${splitQuestions.length} 道题目`)
-      
-      // 显示通知（用于用户切换页面后查看）
-      notification.success({
-        message: '切题完成',
-        description: `成功切分出 ${splitQuestions.length} 道题目`,
-        duration: 3,
-      })
     } catch (error) {
       failTask(taskId, error instanceof Error ? error.message : String(error))
       message.error('自动切题失败: ' + (error instanceof Error ? error.message : String(error)))
@@ -424,11 +417,6 @@ export function useImageUpload(): UseImageUploadReturn {
         })
         completeTask(taskId)
         message.success(`批量切题完成，共切分出 ${allNewImages.length} 道题目`)
-        notification.success({
-          message: '批量切题完成',
-          description: `共切分出 ${allNewImages.length} 道题目`,
-          duration: 3,
-        })
       } else {
         failTask(taskId, '未检测到题目')
         message.warning('未检测到题目')

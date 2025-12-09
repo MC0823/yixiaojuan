@@ -903,6 +903,7 @@ function PresentationPage() {
 
   /**
    * 插入题目到画布
+   * 注：Canvas在最上层但背景透明，题目始终可见
    */
   const insertQuestionToCanvas = useCallback((questionIndex: number, x?: number, y?: number) => {
     const question = questions[questionIndex]
@@ -928,16 +929,8 @@ function PresentationPage() {
     setCanvasQuestions(prev => [...prev, newItem])
     setSelectedCanvasQuestion(newItem.id)
     
-    // 插入后自动关闭画笔模式，让用户能看到并调整题目位置
-    if (isDrawingEnabled) {
-      setIsDrawingEnabled(false)
-      if (canvasRef.current) {
-        canvasRef.current.setDrawingMode(false)
-      }
-    }
-    
-    message.success('题目已插入画布')
-  }, [questions, canvasSize, isDrawingEnabled])
+    message.success('题目已插入画布，切换到拖拽模式可调整位置')
+  }, [questions, canvasSize])
 
   /**
    * 从画布删除题目
@@ -1004,11 +997,9 @@ function PresentationPage() {
 
   /**
    * 画布中题目拖拽开始
+   * 注：由于Canvas在最上层，书写模式时Canvas会拦截所有事件，题目收不到鼠标事件
    */
   const handleCanvasQuestionDragStart = useCallback((e: React.MouseEvent, item: CanvasQuestionItem) => {
-    // 画笔模式下不允许拖动题目
-    if (isDrawingEnabled) return
-    
     e.stopPropagation()
     e.preventDefault()
     setSelectedCanvasQuestion(item.id)
@@ -1028,7 +1019,7 @@ function PresentationPage() {
       x: mouseX - item.x,
       y: mouseY - item.y
     })
-  }, [isDrawingEnabled, canvasScale, canvasOffset])
+  }, [canvasScale, canvasOffset])
 
   /**
    * 画布中题目拖拽移动
@@ -1635,40 +1626,30 @@ function PresentationPage() {
             onDragOver={handleDragOver}
             style={{ cursor: isPanning ? 'grabbing' : (!isDrawingEnabled ? 'grab' : 'default') }}
           >
-            {/* 变换层 */}
+            {/* 变换层 - Canvas在最上层，题目在下层 */}
             <div 
               className={styles.canvasTransformLayer}
               style={{
                 width: canvasSize.width,
                 height: canvasSize.height,
                 position: 'relative',
-                transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasScale})`,
-                pointerEvents: isDrawingEnabled ? 'auto' : 'none'
+                transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasScale})`
               }}
             >
-              <WhiteboardCanvas
-                ref={canvasRef}
-                width={canvasSize.width}
-                height={canvasSize.height}
-                backgroundColor="#FFFFFF"
-                onCanvasReady={handleCanvasReady}
-              />
-              
-              {/* 画布中的题目 */}
+              {/* 题目层 - 在Canvas下方，z-index较低 */}
               {canvasQuestions.map((item) => (
                 <div
                   key={item.id}
-                  className={`${styles.canvasQuestion} ${selectedCanvasQuestion === item.id ? styles.selected : ''} ${isDrawingEnabled ? styles.drawingMode : ''}`}
+                  className={`${styles.canvasQuestion} ${selectedCanvasQuestion === item.id ? styles.selected : ''}`}
                   style={{
                     position: 'absolute',
                     left: item.x,
                     top: item.y,
                     transform: `scale(${item.scale})`,
                     transformOrigin: 'top left',
-                    // 题目始终在上层，画笔模式时穿透事件
-                    zIndex: 100,
-                    pointerEvents: isDrawingEnabled ? 'none' : 'auto',
-                    cursor: isDrawingEnabled ? 'default' : 'move'
+                    zIndex: 5,
+                    pointerEvents: 'auto',
+                    cursor: 'move'
                   }}
                   onMouseDown={(e) => handleCanvasQuestionDragStart(e, item)}
                   onWheel={(e) => !isDrawingEnabled && handleCanvasQuestionWheel(e, item.id)}
@@ -1706,6 +1687,25 @@ function PresentationPage() {
                   </div>
                 </div>
               ))}
+              
+              {/* Canvas层 - 在最上层，透明背景，书写时接收事件，否则穿透 */}
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  zIndex: 10,
+                  pointerEvents: isDrawingEnabled ? 'auto' : 'none'
+                }}
+              >
+                <WhiteboardCanvas
+                  ref={canvasRef}
+                  width={canvasSize.width}
+                  height={canvasSize.height}
+                  backgroundColor="transparent"
+                  onCanvasReady={handleCanvasReady}
+                />
+              </div>
             </div>
             {canvasScale !== 1 && (
               <div className={styles.scaleIndicator} onClick={handleResetView}>
