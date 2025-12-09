@@ -122,6 +122,9 @@ function UploadPage() {
    * 处理预览确认
    */
   const handlePreviewConfirm = useCallback(async (mode: 'merge' | 'separate', selectedGroups?: string[]) => {
+    console.log('[Upload] 预览确认:', { mode, selectedGroups, imagesCount: images.length })
+    console.log('[Upload] 图片sourceImage:', images.map(img => ({ name: img.name, sourceImage: img.sourceImage })))
+
     setShowPreviewModal(false)
 
     if (mode === 'merge') {
@@ -134,6 +137,9 @@ function UploadPage() {
       }
       message.success(`成功创建 ${selectedGroups.length} 个课件`)
       navigate('/')
+    } else {
+      // 只有一个分组时，直接创建
+      setShowTitleModal(true)
     }
   }, [images])
 

@@ -22,13 +22,16 @@ export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }:
       }
       groupMap.get(group)!.push(img)
     })
-    return Array.from(groupMap.entries()).map(([name, items]) => ({ name, items, count: items.length }))
+    const result = Array.from(groupMap.entries()).map(([name, items]) => ({ name, items, count: items.length }))
+    console.log('[CoursewarePreviewModal] 分组结果:', result.map(g => ({ name: g.name, count: g.count })))
+    return result
   }, [images])
 
   const hasMultipleGroups = groups.length > 1
+  console.log('[CoursewarePreviewModal] hasMultipleGroups:', hasMultipleGroups, 'groups.length:', groups.length)
 
   const handleConfirm = () => {
-    if (mode === 'separate' && selectedGroups.length === 0) {
+    if (mode === 'separate' && hasMultipleGroups && selectedGroups.length === 0) {
       return
     }
     onConfirm(mode, mode === 'separate' ? selectedGroups : undefined)

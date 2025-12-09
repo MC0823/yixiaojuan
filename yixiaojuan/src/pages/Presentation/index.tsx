@@ -31,7 +31,10 @@ import {
   AudioOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
-  DragOutlined
+  DragOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+  HolderOutlined
 } from '@ant-design/icons'
 import html2canvas from 'html2canvas'
 import { WhiteboardCanvas, type WhiteboardCanvasRef, DEFAULT_COLORS } from '../../components/canvas'
@@ -73,6 +76,22 @@ interface CoursewareData {
  * 工具类型
  */
 type ToolType = 'pen' | 'eraser'
+
+/**
+ * 画布中的题目项
+ */
+interface CanvasQuestionItem {
+  id: string
+  questionIndex: number
+  questionText: string
+  options: OptionItem[]
+  answer?: string
+  x: number
+  y: number
+  width: number
+  height: number
+  scale: number
+}
 
 /**
  * 解析选项
@@ -177,6 +196,12 @@ function PresentationPage() {
   const audioChunksRef = useRef<Blob[]>([])
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
+
+  // 画布中的题目状态
+  const [canvasQuestions, setCanvasQuestions] = useState<CanvasQuestionItem[]>([])
+  const [selectedCanvasQuestion, setSelectedCanvasQuestion] = useState<string | null>(null)
+  const [isDraggingQuestion, setIsDraggingQuestion] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
 
   // 当前题目
   const currentQuestion = questions[currentIndex]
@@ -877,6 +902,175 @@ function PresentationPage() {
   }, [penColor, penWidth])
 
   /**
+   * 插入题目到画布
+   */
+  const insertQuestionToCanvas = useCallback((questionIndex: number, x?: number, y?: number) => {
+    const question = questions[questionIndex]
+    if (!question) return
+    
+    const options = parseOptions(question.options)
+    // 默认放在画布中央位置
+    const defaultX = x ?? (canvasSize.width / 2 - 200)
+    const defaultY = y ?? (canvasSize.height / 2 - 150)
+    const newItem: CanvasQuestionItem = {
+      id: `canvas-q-${Date.now()}`,
+      questionIndex,
+      questionText: question.ocr_text || '暂无题目内容',
+      options,
+      answer: question.answer,
+      x: Math.max(0, defaultX),
+      y: Math.max(0, defaultY),
+      width: 400,
+      height: 300,
+      scale: 1
+    }
+    
+    setCanvasQuestions(prev => [...prev, newItem])
+    setSelectedCanvasQuestion(newItem.id)
+    
+    // 插入后自动关闭画笔模式，让用户能看到并调整题目位置
+    if (isDrawingEnabled) {
+      setIsDrawingEnabled(false)
+      if (canvasRef.current) {
+        canvasRef.current.setDrawingMode(false)
+      }
+    }
+    
+    message.success('题目已插入画布')
+  }, [questions, canvasSize, isDrawingEnabled])
+
+  /**
+   * 从画布删除题目
+   */
+  const removeQuestionFromCanvas = useCallback((id: string) => {
+    setCanvasQuestions(prev => prev.filter(q => q.id !== id))
+    if (selectedCanvasQuestion === id) {
+      setSelectedCanvasQuestion(null)
+    }
+  }, [selectedCanvasQuestion])
+
+  /**
+   * 更新画布题目位置
+   */
+  const updateCanvasQuestionPosition = useCallback((id: string, x: number, y: number) => {
+    setCanvasQuestions(prev => prev.map(q => 
+      q.id === id ? { ...q, x, y } : q
+    ))
+  }, [])
+
+  /**
+   * 更新画布题目缩放
+   */
+  const updateCanvasQuestionScale = useCallback((id: string, scale: number) => {
+    setCanvasQuestions(prev => prev.map(q => 
+      q.id === id ? { ...q, scale: Math.max(0.5, Math.min(2, scale)) } : q
+    ))
+  }, [])
+
+  /**
+   * 拖拽开始 - 从左侧题目卡片
+   */
+  const handleDragStartQuestion = useCallback((e: React.DragEvent) => {
+    e.dataTransfer.setData('text/plain', String(currentIndex))
+    e.dataTransfer.effectAllowed = 'copy'
+  }, [currentIndex])
+
+  /**
+   * 拖拽结束 - 画布接收
+   */
+  const handleDropOnCanvas = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const questionIndex = parseInt(e.dataTransfer.getData('text/plain'), 10)
+    if (isNaN(questionIndex)) return
+    
+    // 计算相对于画布的位置
+    const wrapper = canvasWrapperRef.current
+    if (!wrapper) return
+    
+    const rect = wrapper.getBoundingClientRect()
+    const x = (e.clientX - rect.left - canvasOffset.x) / canvasScale
+    const y = (e.clientY - rect.top - canvasOffset.y) / canvasScale
+    
+    insertQuestionToCanvas(questionIndex, x, y)
+  }, [canvasOffset, canvasScale, insertQuestionToCanvas])
+
+  /**
+   * 拖拽进入画布区域
+   */
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }, [])
+
+  /**
+   * 画布中题目拖拽开始
+   */
+  const handleCanvasQuestionDragStart = useCallback((e: React.MouseEvent, item: CanvasQuestionItem) => {
+    // 画笔模式下不允许拖动题目
+    if (isDrawingEnabled) return
+    
+    e.stopPropagation()
+    e.preventDefault()
+    setSelectedCanvasQuestion(item.id)
+    setIsDraggingQuestion(true)
+    
+    // 记录鼠标相对于题目卡片左上角的偏移（在画布坐标系中）
+    const wrapper = canvasWrapperRef.current
+    if (!wrapper) return
+    
+    const rect = wrapper.getBoundingClientRect()
+    // 计算鼠标在画布坐标系中的位置
+    const mouseX = (e.clientX - rect.left - canvasOffset.x) / canvasScale
+    const mouseY = (e.clientY - rect.top - canvasOffset.y) / canvasScale
+    
+    // 记录偏移量：鼠标位置 - 题目位置
+    setDragOffset({
+      x: mouseX - item.x,
+      y: mouseY - item.y
+    })
+  }, [isDrawingEnabled, canvasScale, canvasOffset])
+
+  /**
+   * 画布中题目拖拽移动
+   */
+  const handleCanvasQuestionDrag = useCallback((e: React.MouseEvent) => {
+    if (!isDraggingQuestion || !selectedCanvasQuestion) return
+    
+    const wrapper = canvasWrapperRef.current
+    if (!wrapper) return
+    
+    const rect = wrapper.getBoundingClientRect()
+    // 计算鼠标在画布坐标系中的位置
+    const mouseX = (e.clientX - rect.left - canvasOffset.x) / canvasScale
+    const mouseY = (e.clientY - rect.top - canvasOffset.y) / canvasScale
+    
+    // 新位置 = 鼠标位置 - 偏移量
+    const newX = mouseX - dragOffset.x
+    const newY = mouseY - dragOffset.y
+    
+    updateCanvasQuestionPosition(selectedCanvasQuestion, Math.max(0, newX), Math.max(0, newY))
+  }, [isDraggingQuestion, selectedCanvasQuestion, canvasScale, canvasOffset, dragOffset, updateCanvasQuestionPosition])
+
+  /**
+   * 画布中题目拖拽结束
+   */
+  const handleCanvasQuestionDragEnd = useCallback(() => {
+    setIsDraggingQuestion(false)
+  }, [])
+
+  /**
+   * 画布题目缩放 - 滚轮
+   */
+  const handleCanvasQuestionWheel = useCallback((e: React.WheelEvent, id: string) => {
+    e.stopPropagation()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const item = canvasQuestions.find(q => q.id === id)
+    if (item) {
+      updateCanvasQuestionScale(id, item.scale + delta)
+    }
+  }, [canvasQuestions, updateCanvasQuestionScale])
+
+  /**
    * 打开PDF导出选择对话框
    */
   const handleExportPdf = useCallback(() => {
@@ -1205,9 +1399,25 @@ function PresentationPage() {
       <div ref={mainContentRef} className={styles.mainContent}>
         {/* 左侧题目卡片 */}
         <div className={styles.leftPanel} style={{ width: `${leftWidth}%` }}>
-          <div className={styles.questionCard}>
+          <div 
+            className={styles.questionCard}
+            draggable
+            onDragStart={handleDragStartQuestion}
+          >
             <div className={styles.cardHeader}>
+              <div className={styles.dragHandle}>
+                <HolderOutlined />
+              </div>
               <span className={styles.questionLabel}>题目 {currentIndex + 1}</span>
+              <Tooltip title="插入到画布">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<PlusOutlined />}
+                  className={styles.insertBtn}
+                  onClick={() => insertQuestionToCanvas(currentIndex)}
+                />
+              </Tooltip>
             </div>
             
             <div className={styles.cardContent}>
@@ -1263,7 +1473,6 @@ function PresentationPage() {
                 type={showAnswer ? 'primary' : 'default'}
                 icon={showAnswer ? <EyeOutlined /> : <EyeInvisibleOutlined />}
                 onClick={toggleAnswer}
-                size="large"
               >
                 {showAnswer ? '隐藏答案' : '显示答案'}
               </Button>
@@ -1272,8 +1481,6 @@ function PresentationPage() {
                 type={isGradingMode ? 'primary' : 'default'}
                 icon={<FormOutlined />}
                 onClick={toggleGradingMode}
-                size="large"
-                style={{ marginLeft: 8 }}
               >
                 {isGradingMode ? '退出批改' : '批改模式'}
               </Button>
@@ -1287,22 +1494,17 @@ function PresentationPage() {
                   <Input
                     value={currentStudentAnswer}
                     onChange={(e) => setStudentAnswer(e.target.value)}
-                    placeholder="点击选项或输入答案（如: A, AB, BCD）"
-                    style={{ width: 200 }}
+                    placeholder="点击选项或输入答案"
                     onPressEnter={gradeCurrentQuestion}
                   />
                   <Button
                     type="primary"
                     icon={<CheckOutlined />}
                     onClick={gradeCurrentQuestion}
-                    style={{ marginLeft: 8 }}
                   >
                     判分
                   </Button>
-                  <Button
-                    onClick={gradeAllQuestions}
-                    style={{ marginLeft: 8 }}
-                  >
+                  <Button onClick={gradeAllQuestions}>
                     全部判分
                   </Button>
                 </div>
@@ -1311,11 +1513,11 @@ function PresentationPage() {
                 {currentGradingResult !== null && currentGradingResult !== undefined && (
                   <div className={styles.gradingResult}>
                     {currentGradingResult ? (
-                      <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 16, padding: '4px 12px' }}>
+                      <Tag icon={<CheckCircleOutlined />} color="success">
                         回答正确
                       </Tag>
                     ) : (
-                      <Tag icon={<CloseCircleOutlined />} color="error" style={{ fontSize: 16, padding: '4px 12px' }}>
+                      <Tag icon={<CloseCircleOutlined />} color="error">
                         回答错误，正确答案: {currentQuestion?.answer}
                       </Tag>
                     )}
@@ -1323,17 +1525,15 @@ function PresentationPage() {
                 )}
                 
                 {/* 判分统计 */}
-                <div className={styles.gradingStats}>
-                  {Object.keys(gradingResults).length > 0 && (
-                    <span>
-                      已判: {Object.values(gradingResults).filter(r => r !== null).length} 题
-                      {' | '}
-                      正确: {Object.values(gradingResults).filter(r => r === true).length} 题
-                      {' | '}
-                      错误: {Object.values(gradingResults).filter(r => r === false).length} 题
-                    </span>
-                  )}
-                </div>
+                {Object.keys(gradingResults).length > 0 && (
+                  <div className={styles.gradingStats}>
+                    已判: {Object.values(gradingResults).filter(r => r !== null).length} 题
+                    {' | '}
+                    正确: {Object.values(gradingResults).filter(r => r === true).length} 题
+                    {' | '}
+                    错误: {Object.values(gradingResults).filter(r => r === false).length} 题
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1417,17 +1617,31 @@ function PresentationPage() {
             className={`${styles.canvasWrapper} ${!isDrawingEnabled ? styles.draggable : ''}`}
             ref={canvasWrapperRef}
             onMouseDown={handleCanvasMouseDown}
-            onMouseMove={handleCanvasMouseMove}
-            onMouseUp={handleCanvasMouseUp}
-            onMouseLeave={handleCanvasMouseUp}
+            onMouseMove={(e) => {
+              handleCanvasMouseMove(e)
+              handleCanvasQuestionDrag(e)
+            }}
+            onMouseUp={() => {
+              handleCanvasMouseUp()
+              handleCanvasQuestionDragEnd()
+            }}
+            onMouseLeave={() => {
+              handleCanvasMouseUp()
+              handleCanvasQuestionDragEnd()
+            }}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
+            onDrop={handleDropOnCanvas}
+            onDragOver={handleDragOver}
             style={{ cursor: isPanning ? 'grabbing' : (!isDrawingEnabled ? 'grab' : 'default') }}
           >
             {/* 变换层 */}
             <div 
               className={styles.canvasTransformLayer}
               style={{
+                width: canvasSize.width,
+                height: canvasSize.height,
+                position: 'relative',
                 transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${canvasScale})`,
                 pointerEvents: isDrawingEnabled ? 'auto' : 'none'
               }}
@@ -1439,6 +1653,59 @@ function PresentationPage() {
                 backgroundColor="#FFFFFF"
                 onCanvasReady={handleCanvasReady}
               />
+              
+              {/* 画布中的题目 */}
+              {canvasQuestions.map((item) => (
+                <div
+                  key={item.id}
+                  className={`${styles.canvasQuestion} ${selectedCanvasQuestion === item.id ? styles.selected : ''} ${isDrawingEnabled ? styles.drawingMode : ''}`}
+                  style={{
+                    position: 'absolute',
+                    left: item.x,
+                    top: item.y,
+                    transform: `scale(${item.scale})`,
+                    transformOrigin: 'top left',
+                    // 题目始终在上层，画笔模式时穿透事件
+                    zIndex: 100,
+                    pointerEvents: isDrawingEnabled ? 'none' : 'auto',
+                    cursor: isDrawingEnabled ? 'default' : 'move'
+                  }}
+                  onMouseDown={(e) => handleCanvasQuestionDragStart(e, item)}
+                  onWheel={(e) => !isDrawingEnabled && handleCanvasQuestionWheel(e, item.id)}
+                  onClick={(e) => {
+                    if (isDrawingEnabled) return
+                    e.stopPropagation()
+                    setSelectedCanvasQuestion(item.id)
+                  }}
+                >
+                  <div className={styles.canvasQuestionHeader}>
+                    <span>题目 {item.questionIndex + 1}</span>
+                    <Button
+                      type="text"
+                      size="small"
+                      icon={<DeleteOutlined />}
+                      className={styles.deleteBtn}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeQuestionFromCanvas(item.id)
+                      }}
+                    />
+                  </div>
+                  <div className={styles.canvasQuestionContent}>
+                    <div className={styles.canvasQuestionText}>{item.questionText}</div>
+                    {item.options.length > 0 && (
+                      <div className={styles.canvasQuestionOptions}>
+                        {item.options.map((opt) => (
+                          <div key={opt.label} className={styles.canvasQuestionOption}>
+                            <span className={styles.optLabel}>{opt.label}.</span>
+                            <span>{opt.content}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
             {canvasScale !== 1 && (
               <div className={styles.scaleIndicator} onClick={handleResetView}>
