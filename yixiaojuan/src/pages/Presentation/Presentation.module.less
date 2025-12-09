@@ -294,6 +294,80 @@
   margin-left: 8px;
 }
 
+/* 正确答案显示卡片 - 美观设计 */
+.correctAnswerCard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 16px 24px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, rgba(82, 196, 26, 0.15) 0%, rgba(115, 209, 61, 0.2) 100%);
+  border: 1px solid rgba(82, 196, 26, 0.4);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp 0.3s ease-out;
+
+  // 装饰性光效
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+  }
+
+  .answerIconWrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(82, 196, 26, 0.4);
+
+    .answerIcon {
+      font-size: 18px;
+      color: white;
+    }
+  }
+
+  .answerContent {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .answerTitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 400;
+  }
+
+  .answerValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: #7ed957;
+    letter-spacing: 2px;
+    text-shadow: 0 2px 8px rgba(82, 196, 26, 0.3);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* 答案区域 */
 .answerSection {
   display: flex;

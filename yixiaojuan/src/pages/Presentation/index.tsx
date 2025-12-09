@@ -1244,6 +1244,19 @@ function PresentationPage() {
               ))}
             </div>
             
+            {/* 正确答案显示卡片 */}
+            {showAnswer && currentQuestion?.answer && (
+              <div className={styles.correctAnswerCard}>
+                <div className={styles.answerIconWrapper}>
+                  <CheckOutlined className={styles.answerIcon} />
+                </div>
+                <div className={styles.answerContent}>
+                  <span className={styles.answerTitle}>正确答案</span>
+                  <span className={styles.answerValue}>{currentQuestion.answer}</span>
+                </div>
+              </div>
+            )}
+            
             {/* 答案显示按钮 & 批改模式 */}
             <div className={styles.answerSection}>
               <Button

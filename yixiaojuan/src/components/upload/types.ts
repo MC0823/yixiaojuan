@@ -19,6 +19,7 @@ export interface UploadImageItem {
   isProcessing?: boolean
   questionType?: QuestionType
   questionNumber?: number
+  sourceImage?: string  // 来源试卷名称（切分题目时记录）
 }
 
 /**

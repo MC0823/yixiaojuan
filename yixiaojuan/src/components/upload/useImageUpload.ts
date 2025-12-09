@@ -302,15 +302,17 @@ export function useImageUpload(): UseImageUploadReturn {
         }
       }
       
+      const sourceName = image.name.replace(/\.(jpg|jpeg|png|gif|bmp|webp)$/i, '')
       const newImages: UploadImageItem[] = splitQuestions.map((q, idx) => ({
         id: `split_${Date.now()}_${idx}`,
         path: `split_${idx + 1}.png`,
-        name: `第${q.index}题`,
+        name: `${sourceName}-第${q.index}题`,
         thumbnail: q.base64,
         base64Data: q.base64,
         ocrText: q.ocrText,
         stem: q.stem,
-        options: q.options
+        options: q.options,
+        sourceImage: sourceName
       }))
       
       setImages(prev => {
@@ -391,15 +393,17 @@ export function useImageUpload(): UseImageUploadReturn {
           const result = await paddleOcrSplit(imageSource)
 
           if (result.success && result.questions.length > 0) {
+            const sourceName = image.name.replace(/\.(jpg|jpeg|png|gif|bmp|webp)$/i, '')
             const newImages: UploadImageItem[] = result.questions.map((q, idx) => ({
               id: `split_${Date.now()}_${i}_${idx}`,
               path: `split_${i + 1}_${idx + 1}.png`,
-              name: `第${q.index}题`,
+              name: `${sourceName}-第${q.index}题`,
               thumbnail: q.base64,
               base64Data: q.base64,
               ocrText: q.ocrText,
               stem: q.stem,
-              options: q.options
+              options: q.options,
+              sourceImage: sourceName
             }))
             allNewImages.push(...newImages)
             processedIds.push(image.id)
