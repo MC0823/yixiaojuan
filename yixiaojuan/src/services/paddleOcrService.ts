@@ -3,6 +3,9 @@
  * 通过 Electron IPC 调用主进程代理的 PaddleOCR 服务
  */
 
+// 调试模式开关
+const DEBUG_OCR = false
+
 // 服务启动状态
 let isServiceStarting = false
 let serviceStartPromise: Promise<boolean> | null = null
@@ -12,15 +15,15 @@ let serviceStartPromise: Promise<boolean> | null = null
  */
 export async function checkOcrServerHealth(): Promise<boolean> {
   if (!window.electronAPI?.paddleOcr) {
-    console.log('[PaddleOCR] electronAPI.paddleOcr 不可用')
+    DEBUG_OCR && console.log('[PaddleOCR] electronAPI.paddleOcr 不可用')
     return false
   }
   try {
     const result = await window.electronAPI.paddleOcr.health()
-    console.log('[PaddleOCR] 健康检查:', result)
+    DEBUG_OCR && console.log('[PaddleOCR] 健康检查:', result)
     return result.healthy
   } catch (error) {
-    console.log('[PaddleOCR] 健康检查失败:', error)
+    DEBUG_OCR && console.log('[PaddleOCR] 健康检查失败:', error)
     return false
   }
 }
@@ -34,7 +37,7 @@ export async function startOcrService(
   onProgress?: (percent: number, status: string) => void
 ): Promise<boolean> {
   if (!window.electronAPI?.paddleOcr?.startService) {
-    console.log('[PaddleOCR] startService API 不可用')
+    DEBUG_OCR && console.log('[PaddleOCR] startService API 不可用')
     return false
   }
 
@@ -62,7 +65,7 @@ export async function startOcrService(
       
       if (result.success) {
         onProgress?.(100, 'OCR 服务启动成功')
-        console.log('[PaddleOCR] 服务启动成功')
+        DEBUG_OCR && console.log('[PaddleOCR] 服务启动成功')
         return true
       } else {
         console.error('[PaddleOCR] 服务启动失败:', result.error)
@@ -275,7 +278,7 @@ export async function eraseHandwriting(
   }
   
   try {
-    console.log('[PaddleOCR] 开始擦除笔迹, 模式:', mode)
+    DEBUG_OCR && console.log('[PaddleOCR] 开始擦除笔迹, 模式:', mode)
     
     const result = await window.electronAPI.paddleOcr.eraseHandwriting(imageBase64, mode)
     
@@ -283,7 +286,7 @@ export async function eraseHandwriting(
       throw new Error(result.error || '笔迹擦除失败')
     }
     
-    console.log('[PaddleOCR] 笔迹擦除完成')
+    DEBUG_OCR && console.log('[PaddleOCR] 笔迹擦除完成')
     
     return {
       success: true,
