@@ -16,7 +16,6 @@ import {
   InboxOutlined, EyeOutlined, ScanOutlined, FileAddOutlined, CloseOutlined,
   ExportOutlined, ImportOutlined, ClearOutlined, RotateRightOutlined, StopOutlined
 } from '@ant-design/icons'
-// 白板批注功能仅在演示页面使用
 import { useKeyboardShortcuts, type ShortcutConfig } from '../../hooks'
 import { QuestionClassifier, type QuestionType } from '../../utils/questionClassifier'
 import { useImageUpload } from '../../components/upload'
