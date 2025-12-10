@@ -199,6 +199,59 @@
   flex-direction: column;
   padding: 16px;
   overflow: hidden;
+  position: relative;
+  transition: transform 0.3s ease;
+
+  &.leftPanelFullscreen {
+    position: fixed;
+    top: 60px;
+    bottom: 0;
+    left: 0;
+    z-index: 2001;
+    transform: translateX(calc(-100% + 32px));
+    
+    // 全屏模式下 questionCard 使用渐变背景
+    .questionCard {
+      background: @gradient-primary;
+      border: none;
+    }
+  }
+
+  &.leftPanelVisible {
+    transform: translateX(0);
+  }
+}
+
+.leftPanelHandle {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 80px;
+  background: @glass-bg-medium;
+  backdrop-filter: @glass-blur;
+  border: 1px solid @glass-border;
+  border-left: none;
+  border-radius: 0 @border-radius-lg 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  z-index: 2002;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+  &:hover {
+    background: @glass-bg-strong;
+    border-color: @glass-border-hover;
+  }
+
+  :global(.anticon) {
+    font-size: 14px;
+    transition: transform 0.3s;
+  }
 }
 
 .questionCard {
@@ -211,6 +264,7 @@
   border-radius: @border-radius-xl;
   overflow: hidden;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+
 }
 
 .cardHeader {
@@ -237,6 +291,34 @@
   font-size: 16px;
   line-height: 1.8;
   color: white;
+  position: relative;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+    
+    .dragHint {
+      opacity: 1;
+    }
+  }
+  
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* 拖拽提示图标 */
+.dragHint {
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 /* 选项区域 - 毛玻璃设计 */
@@ -257,10 +339,19 @@
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.1);
   transition: all 0.2s;
+  position: relative;
   
   &:hover {
     border-color: rgba(255, 255, 255, 0.4);
     background: rgba(255, 255, 255, 0.15);
+    
+    .optionDragHandle {
+      opacity: 1;
+    }
+  }
+  
+  &:active {
+    cursor: grabbing;
   }
   
   &.correct {
@@ -273,6 +364,18 @@
       font-weight: 600;
     }
   }
+}
+
+/* 选项拖拽把手 */
+.optionDragHandle {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 .optionLabel {
@@ -404,8 +507,6 @@
   position: relative;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.08);
-    
     .dividerHandle {
       background: rgba(46, 196, 182, 0.6);
       width: 8px;
@@ -457,6 +558,18 @@
   border-radius: @border-radius-xl;
   overflow: hidden;
   margin: 16px 16px 16px 0;
+  transition: all 0.3s ease;
+
+  &.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    border-radius: 0;
+    z-index: 2000;
+  }
 }
 
 /* 工具栏 */
@@ -512,6 +625,17 @@
     }
   }
   
+  /* 橡皮擦激活状态 */
+  .eraserActive {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border-color: @primary-color !important;
+    color: @primary-color !important;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 1) !important;
+    }
+  }
+  
   .saveBtn {
     background: @btn-primary-bg !important;
     border: none !important;
@@ -532,15 +656,83 @@
   border: 1px solid rgba(255, 255, 255, 0.4);
 }
 
-/* 画布容器 - 填满内容区域，白色背景实现无限画布效果 */
+/* 橡皮擦包装器 - 纯 CSS 悬浮方案 */
+.eraserWrapper {
+  position: relative;
+  display: inline-block;
+  
+  &:hover {
+    .eraserSliderDropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* 橡皮擦滑竿下拉 - 完全无背景 */
+.eraserSliderDropdown {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-5px);
+  padding-top: 8px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+  z-index: 1000;
+  
+  /* 自定义滑竿样式 - 青绿色玻璃质感 */
+  :global {
+    .ant-slider {
+      margin: 0;
+      padding: 0;
+      height: 70px;
+      
+      /* 滑轨背景 - 半透明白色玻璃 */
+      .ant-slider-rail {
+        background: rgba(255, 255, 255, 0.35) !important;
+        width: 4px !important;
+        border-radius: 2px;
+      }
+      
+      /* 已填充部分 - 青绿色渐变 */
+      .ant-slider-track {
+        background: linear-gradient(to top, @primary-color, @primary-color-light) !important;
+        width: 4px !important;
+        border-radius: 2px;
+      }
+      
+      /* 圆形把手 - 青绿色玻璃质感 + 发光效果 */
+      .ant-slider-handle {
+        width: 12px !important;
+        height: 12px !important;
+        border-radius: 50% !important;
+        background: @primary-color !important;
+        border: 2px solid rgba(255, 255, 255, 0.9) !important;
+        box-shadow: 0 0 6px rgba(46, 196, 182, 0.5), 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+        inset-inline-start: -4px !important;
+        
+        &:hover, &:focus {
+          background: @primary-color-hover !important;
+          border-color: white !important;
+          box-shadow: 0 0 10px rgba(46, 196, 182, 0.7), 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        &::before, &::after {
+          display: none !important;
+        }
+      }
+    }
+  }
+}
+
+/* 画布容器 - 填满内容区域 */
 .canvasWrapper {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   overflow: hidden;
   position: relative;
-  background: #FFFFFF; /* 白色背景，无论怎么移动缩放都是白色 */
+  background: #FFFFFF;
   padding: 0;
   
   &.draggable {
@@ -554,15 +746,19 @@
 
 /* 画布变换层 */
 .canvasTransformLayer {
-  transform-origin: center center;
-  transition: transform 0.05s ease-out;
+  transform-origin: 0 0;
+  transition: none;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
   
-  // 画布在中间层
+  // 画布在底层
   canvas {
     outline: none !important;
     border: none !important;
     position: relative;
-    z-index: 10;
+    z-index: 1;
   }
 }
 
@@ -772,6 +968,9 @@
   cursor: move;
   user-select: none;
   transition: box-shadow 0.2s, border-color 0.2s;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
   
   &:hover {
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
@@ -839,5 +1038,21 @@
     color: @primary-color;
     font-weight: 600;
     flex-shrink: 0;
+  }
+}
+
+/* 画布中的单个选项卡片 */
+.canvasOptionItem {
+  min-width: 200px;
+  max-width: 400px;
+  
+  .canvasQuestionContent {
+    padding: 8px 12px;
+  }
+  
+  .canvasQuestionOption {
+    margin: 0;
+    background: transparent;
+    padding: 4px 0;
   }
 }

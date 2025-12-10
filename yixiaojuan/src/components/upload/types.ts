@@ -12,6 +12,7 @@ export interface UploadImageItem {
   name: string
   thumbnail?: string
   base64Data?: string   // 拖拽上传时保存的 base64 数据
+  size?: number         // 文件大小（字节）
   ocrText?: string
   stem?: string         // 解析后的题干
   options?: Array<{ label: string; content: string }>  // 解析后的选项

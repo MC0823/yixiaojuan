@@ -20,7 +20,10 @@
       "Bash(npm run build)",
       "Bash(npx tsc:*)",
       "Bash(timeout:*)",
-      "Bash(ping:*)"
+      "Bash(ping:*)",
+      "Bash(pip install:*)",
+      "Bash(python -c:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []

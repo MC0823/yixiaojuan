@@ -76,6 +76,8 @@ export interface WhiteboardCanvasRef {
   setBackgroundImage: (imageUrl: string) => Promise<void>
   setBrush: (config: BrushConfig) => void
   setDrawingMode: (enabled: boolean) => void
+  /** 设置画布对象是否可选择（禁用后笔迹不可单独拖拽） */
+  setSelection: (enabled: boolean) => void
   addShape: (type: ShapeType, options?: object) => void
   addText: (text: string, options?: object) => void
   undo: () => boolean
@@ -88,6 +90,12 @@ export interface WhiteboardCanvasRef {
   getContentBounds: () => ContentBounds
   /** 导出包含所有书写内容的图片 */
   exportFullImage: (options?: ExportOptions) => string
+  /** 设置视口变换（缩放和偏移） */
+  setViewportTransform: (scale: number, offsetX: number, offsetY: number) => void
+  /** 临时设置画布尺寸（用于导出） */
+  setDimensions: (width: number, height: number) => void
+  /** 获取 Fabric.js 画布实例（用于导出） */
+  getFabricCanvas: () => Canvas | null
 }
 
 /**
@@ -113,7 +121,6 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
     height = 600,
     backgroundImage,
     backgroundColor = '#FFFFFF',
-    readOnly = false,
     initialData,
     onCanvasReady,
     onChange
@@ -175,7 +182,7 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
       width,
       height,
       backgroundColor,
-      selection: !readOnly,
+      selection: false,  // 禁用对象选择，防止笔迹被单独拖拽
       isDrawingMode: false
     })
 
@@ -193,7 +200,12 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
     }, 0)
 
     // 监听变化事件
-    canvas.on('object:added', () => {
+    canvas.on('object:added', (e) => {
+      // 新添加的对象默认不可选择，防止笔迹被单独拖拽
+      if (e.target) {
+        e.target.selectable = false
+        e.target.evented = false
+      }
       saveHistory()
       if (onChange) {
         onChange(JSON.stringify(canvas.toJSON()))
@@ -232,11 +244,15 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
   }, [])
 
   /**
-   * 更新尺寸
+   * 更新尺寸 - 确保绘画边界也正确更新
    */
   useEffect(() => {
     if (fabricRef.current) {
-      fabricRef.current.setDimensions({ width, height })
+      // 先更新 CSS 尺寸
+      fabricRef.current.setDimensions({ width: `${width}px`, height: `${height}px` }, { cssOnly: true })
+      // 再更新画布背板尺寸（绘画边界）
+      fabricRef.current.setDimensions({ width, height }, { backstoreOnly: true })
+      fabricRef.current.renderAll()
     }
   }, [width, height])
 
@@ -286,30 +302,61 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
       switch (config.type) {
         case 'pencil':
           brush = new PencilBrush(fabricRef.current)
+          brush.color = config.color
+          brush.width = config.width
           break
         case 'circle':
           brush = new CircleBrush(fabricRef.current)
+          brush.color = config.color
+          brush.width = config.width
           break
         case 'spray':
           brush = new SprayBrush(fabricRef.current)
+          brush.color = config.color
+          brush.width = config.width
           break
         case 'eraser':
+          // 橡皮擦使用 destination-out 模式实现精准像素级擦除
           brush = new PencilBrush(fabricRef.current)
-          // 橡皮擦使用背景色
-          config.color = backgroundColor
+          brush.color = '#FFFFFF' // 颜色不重要，destination-out 模式会忽略
+          brush.width = config.width
+          // 设置混合模式为 destination-out，实现真正的擦除效果
+          ;(brush as any).globalCompositeOperation = 'destination-out'
           break
         default:
           brush = new PencilBrush(fabricRef.current)
+          brush.color = config.color
+          brush.width = config.width
       }
 
-      brush.color = config.color
-      brush.width = config.width
       fabricRef.current.freeDrawingBrush = brush
+      // 开启绘图模式
+      fabricRef.current.isDrawingMode = true
     },
 
     setDrawingMode: (enabled: boolean) => {
       if (fabricRef.current) {
         fabricRef.current.isDrawingMode = enabled
+        // 画笔模式下禁用对象选择，防止笔迹被单独拖拽
+        fabricRef.current.selection = false
+        // 取消当前选中的对象
+        fabricRef.current.discardActiveObject()
+        fabricRef.current.renderAll()
+      }
+    },
+
+    setSelection: (enabled: boolean) => {
+      if (fabricRef.current) {
+        fabricRef.current.selection = enabled
+        // 同时设置所有对象的可选择性
+        fabricRef.current.getObjects().forEach(obj => {
+          obj.selectable = enabled
+          obj.evented = enabled
+        })
+        if (!enabled) {
+          fabricRef.current.discardActiveObject()
+        }
+        fabricRef.current.renderAll()
       }
     },
 
@@ -434,12 +481,25 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
       const format = options?.format || 'png'
       const quality = options?.quality || 1
       const multiplier = options?.multiplier || 1
-
-      return fabricRef.current.toDataURL({
+      
+      const canvas = fabricRef.current
+      // 保存原始背景色
+      const originalBgColor = canvas.backgroundColor
+      // 临时设置白色背景，确保擦除区域正确显示
+      canvas.backgroundColor = '#FFFFFF'
+      canvas.renderAll()
+      
+      const dataUrl = canvas.toDataURL({
         format,
         quality,
         multiplier
       })
+      
+      // 恢复原始背景色
+      canvas.backgroundColor = originalBgColor
+      canvas.renderAll()
+      
+      return dataUrl
     },
 
     exportJSON: () => {
@@ -470,17 +530,18 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
       let maxY = -Infinity
 
       objects.forEach(obj => {
-        const rect = obj.getBoundingRect()
+        // 使用 absolute=true 获取不受 viewportTransform 影响的原始坐标
+        const rect = (obj as any).getBoundingRect(true, true)
         minX = Math.min(minX, rect.left)
         minY = Math.min(minY, rect.top)
         maxX = Math.max(maxX, rect.left + rect.width)
         maxY = Math.max(maxY, rect.top + rect.height)
       })
 
-      // 添加一些padding
+      // 添加一些padding（不限制负坐标，允许导出超出原点的内容）
       const padding = 20
-      minX = Math.max(0, minX - padding)
-      minY = Math.max(0, minY - padding)
+      minX = minX - padding
+      minY = minY - padding
       maxX = maxX + padding
       maxY = maxY + padding
 
@@ -500,44 +561,90 @@ const WhiteboardCanvas = forwardRef<WhiteboardCanvasRef, WhiteboardCanvasProps>(
       const quality = options?.quality || 1
       const multiplier = options?.multiplier || 2
 
-      const objects = fabricRef.current.getObjects()
+      const canvas = fabricRef.current
+      const objects = canvas.getObjects()
+      
+      // 保存原始背景色
+      const originalBgColor = canvas.backgroundColor
+      // 临时设置白色背景，确保擦除区域正确显示
+      canvas.backgroundColor = '#FFFFFF'
+      canvas.renderAll()
+      
+      let dataUrl: string
+      
       if (objects.length === 0) {
         // 没有内容，返回整个画布
-        return fabricRef.current.toDataURL({ format, quality, multiplier })
+        dataUrl = canvas.toDataURL({ format, quality, multiplier })
+      } else {
+        // 计算所有对象的边界（包含画布内和画布外的内容）
+        let minX = 0
+        let minY = 0
+        let maxX = width
+        let maxY = height
+
+        objects.forEach(obj => {
+          // 使用 absolute=true 获取不受 viewportTransform 影响的原始坐标
+          const rect = (obj as any).getBoundingRect(true, true)
+          minX = Math.min(minX, rect.left)
+          minY = Math.min(minY, rect.top)
+          maxX = Math.max(maxX, rect.left + rect.width)
+          maxY = Math.max(maxY, rect.top + rect.height)
+        })
+
+        // 添加padding
+        const padding = 20
+        minX = minX - padding
+        minY = minY - padding
+        maxX = maxX + padding
+        maxY = maxY + padding
+
+        // 导出指定区域
+        dataUrl = canvas.toDataURL({
+          format,
+          quality,
+          multiplier,
+          left: minX,
+          top: minY,
+          width: maxX - minX,
+          height: maxY - minY
+        })
       }
+      
+      // 恢复原始背景色
+      canvas.backgroundColor = originalBgColor
+      canvas.renderAll()
+      
+      return dataUrl
+    },
 
-      // 计算所有对象的边界（包含画布内和画布外的内容）
-      let minX = 0
-      let minY = 0
-      let maxX = width
-      let maxY = height
+    /**
+     * 设置视口变换（缩放和偏移）
+     * 用于同步外部的缩放/平移操作到画布
+     */
+    setViewportTransform: (scale: number, offsetX: number, offsetY: number) => {
+      if (!fabricRef.current) return
+      
+      // Fabric.js 的 viewportTransform 是一个 6 元素数组: [scaleX, skewX, skewY, scaleY, translateX, translateY]
+      fabricRef.current.setViewportTransform([scale, 0, 0, scale, offsetX, offsetY])
+      fabricRef.current.renderAll()
+    },
 
-      objects.forEach(obj => {
-        const rect = obj.getBoundingRect()
-        minX = Math.min(minX, rect.left)
-        minY = Math.min(minY, rect.top)
-        maxX = Math.max(maxX, rect.left + rect.width)
-        maxY = Math.max(maxY, rect.top + rect.height)
-      })
+    /**
+     * 临时设置画布尺寸（用于导出）
+     */
+    setDimensions: (newWidth: number, newHeight: number) => {
+      if (!fabricRef.current) return
+      
+      // 分别设置 CSS 尺寸和画布背板尺寸
+      fabricRef.current.setDimensions({ width: `${newWidth}px`, height: `${newHeight}px` }, { cssOnly: true })
+      fabricRef.current.setDimensions({ width: newWidth, height: newHeight }, { backstoreOnly: true })
+      fabricRef.current.renderAll()
+    },
 
-      // 添加padding
-      const padding = 20
-      minX = minX - padding
-      minY = minY - padding
-      maxX = maxX + padding
-      maxY = maxY + padding
-
-      // 导出指定区域
-      return fabricRef.current.toDataURL({
-        format,
-        quality,
-        multiplier,
-        left: minX,
-        top: minY,
-        width: maxX - minX,
-        height: maxY - minY
-      })
-    }
+    /**
+     * 获取 Fabric.js 画布实例（用于导出）
+     */
+    getFabricCanvas: () => fabricRef.current
   }), [width, height, backgroundColor])
 
   return (

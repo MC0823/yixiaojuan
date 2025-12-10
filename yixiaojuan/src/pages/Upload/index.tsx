@@ -12,6 +12,7 @@ import { QuestionClassifier, type QuestionType } from '../../utils/questionClass
 import { ErrorHandler } from '../../utils/errorHandler'
 import { useImageUpload } from '../../components/upload'
 import { CoursewarePreviewModal } from '../../components/courseware/CoursewarePreviewModal'
+import { UPLOAD_CONFIG } from '../../config/upload.config'
 import styles from './Upload.module.less'
 
 const { Title, Paragraph, Text } = Typography
@@ -48,29 +49,43 @@ function UploadPage() {
    * OCR识别单张图片（在渲染进程中运行）
    */
   const handleOcrSingle = useCallback(async (id: string) => {
-    setImages(prev => prev.map(img => 
+    setImages(prev => prev.map(img =>
       img.id === id ? { ...img, isProcessing: true, ocrProgress: 0 } : img
     ))
-    
+
     try {
-      const image = images.find(img => img.id === id)
-      if (!image) return
-      
-      // 准备图片数据
-      let imageSource = image.base64Data || image.thumbnail
-      
+      // 在回调中获取图片，避免依赖整个images数组
+      let imageSource: string | null = null
+      setImages(prev => {
+        const image = prev.find(img => img.id === id)
+        if (image) {
+          imageSource = image.base64Data || image.thumbnail || null
+        }
+        return prev
+      })
+
       // 如果没有 base64 数据，通过 IPC 获取
-      if (!imageSource && window.electronAPI) {
-        const result = await window.electronAPI.image.getInfo(image.path, true)
-        if (result.success && result.data?.base64) {
-          imageSource = result.data.base64
+      if (!imageSource) {
+        const imagePath = await new Promise<string>((resolve) => {
+          setImages(prev => {
+            const img = prev.find(i => i.id === id)
+            if (img) resolve(img.path)
+            return prev
+          })
+        })
+
+        if (window.electronAPI) {
+          const result = await window.electronAPI.image.getInfo(imagePath, true)
+          if (result.success && result.data?.base64) {
+            imageSource = result.data.base64
+          }
         }
       }
-      
+
       if (!imageSource) {
         throw new Error('无法获取图片数据')
       }
-      
+
       // 在渲染进程中直接使用 Tesseract.js 进行 OCR 识别
       const result = await recognizeImage(
         imageSource,
@@ -103,7 +118,7 @@ function UploadPage() {
         img.id === id ? { ...img, isProcessing: false } : img
       ))
     }
-  }, [images])
+  }, [])
 
   /**
    * 批量OCR识别
@@ -282,23 +297,37 @@ function UploadPage() {
     accept: 'image/*',
     showUploadList: false,
     beforeUpload: async (file) => {
+      // 检查文件大小
+      if (file.size > UPLOAD_CONFIG.MAX_FILE_SIZE) {
+        message.error(`文件 ${file.name} 超过 ${UPLOAD_CONFIG.MAX_FILE_SIZE / 1024 / 1024}MB 限制`)
+        return false
+      }
+
+      // 检查总大小
+      const totalSize = images.reduce((sum, img) => sum + (img.size || 0), 0)
+      if (totalSize + file.size > UPLOAD_CONFIG.MAX_TOTAL_SIZE) {
+        message.error(`图片总大小超过 ${UPLOAD_CONFIG.MAX_TOTAL_SIZE / 1024 / 1024}MB 限制`)
+        return false
+      }
+
       // 将拖拽的文件转换为图片项
       const id = `img_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      
+
       // 读取文件为Base64
       const reader = new FileReader()
       reader.onload = (e) => {
         const base64 = e.target?.result as string
         setImages(prev => [...prev, {
           id,
-          path: file.name, // 浏览器环境无法获取完整路径
+          path: file.name,
           name: file.name,
           thumbnail: base64,
-          base64Data: base64  // 保存 base64 数据用于 OCR 识别
+          base64Data: base64,
+          size: file.size
         }])
       }
       reader.readAsDataURL(file)
-      
+
       return false // 阻止默认上传
     }
   }

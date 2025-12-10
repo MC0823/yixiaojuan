@@ -483,8 +483,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   paddleOcr: {
     health: () => ipcRenderer.invoke(IPC_CHANNELS.PADDLE_OCR_HEALTH),
     split: (imageBase64: string) => ipcRenderer.invoke(IPC_CHANNELS.PADDLE_OCR_SPLIT, imageBase64),
-    eraseHandwriting: (imageBase64: string, mode?: string) => 
-      ipcRenderer.invoke(IPC_CHANNELS.PADDLE_OCR_ERASE_HANDWRITING, imageBase64, mode || 'auto'),
+    eraseHandwriting: (imageBase64: string, mode?: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.PADDLE_OCR_ERASE_HANDWRITING, imageBase64, mode || 'ai'),
     correctImage: (imageBase64: string, options?: {
       auto_perspective?: boolean
       auto_rotate?: boolean

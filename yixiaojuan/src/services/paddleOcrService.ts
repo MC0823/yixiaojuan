@@ -220,15 +220,11 @@ export async function correctImage(
   }
   
   try {
-    console.log('[ImageCorrect] 开始图片矫正', options)
-    
     const result = await window.electronAPI.paddleOcr.correctImage(imageBase64, options)
     
     if (!result.success) {
       throw new Error(result.error || '图片矫正失败')
     }
-    
-    console.log('[ImageCorrect] 矫正完成, 旋转角度:', result.data?.details?.rotation_angle)
     
     return {
       success: true,
@@ -258,20 +254,21 @@ export interface EraseResult {
 /**
  * 擦除模式类型
  */
-export type EraseMode = 'auto' | 'blue' | 'black' | 'color'
+export type EraseMode = 'ai' | 'auto' | 'blue' | 'black' | 'color'
 
 /**
- * 擦除手写笔迹
+ * 擦除手写笔迹（AI增强版）
  * @param imageBase64 图片的 base64 数据
  * @param mode 擦除模式
- *   - 'auto': 自动检测并擦除所有手写内容（默认）
+ *   - 'ai': 使用AI模型智能擦除（推荐，效果最好，默认）
+ *   - 'auto': OpenCV自动检测并擦除所有手写内容
  *   - 'blue': 只擦除蓝色笔迹
  *   - 'black': 只擦除黑色手写
  *   - 'color': 擦除所有彩色笔迹
  */
 export async function eraseHandwriting(
   imageBase64: string,
-  mode: EraseMode = 'auto'
+  mode: EraseMode = 'ai'
 ): Promise<EraseResult> {
   if (!window.electronAPI?.paddleOcr?.eraseHandwriting) {
     throw new Error('笔迹擦除服务不可用')

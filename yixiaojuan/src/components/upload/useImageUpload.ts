@@ -23,6 +23,8 @@ interface UseImageUploadReturn {
   splitProgress: { percent: number; status: string; taskId: string; isFirstRun: boolean }
   /** 是否正在擦除 */
   isErasing: boolean
+  /** 是否正在矫正 */
+  isCorrect: boolean
   /** 预览相关状态 */
   previewVisible: boolean
   previewImage: string
@@ -61,20 +63,13 @@ function generateId(): string {
  * 获取图片数据
  */
 async function getImageSource(image: UploadImageItem): Promise<string | null> {
-  let imageSource = image.base64Data || image.thumbnail
-  
-  if (!imageSource && window.electronAPI) {
-    try {
-      const result = await window.electronAPI.image.getInfo(image.path, true)
-      if (result.success && result.data?.base64) {
-        imageSource = result.data.base64
-      }
-    } catch (e) {
-      console.error('获取图片数据失败:', e)
-    }
+  try {
+    const { getImageData } = await import('../../utils/imageHelper')
+    return await getImageData(image)
+  } catch (e) {
+    console.error('获取图片数据失败:', e)
+    return null
   }
-  
-  return imageSource || null
 }
 
 export function useImageUpload(): UseImageUploadReturn {
@@ -107,6 +102,11 @@ export function useImageUpload(): UseImageUploadReturn {
   
   const isErasing = useMemo(() => 
     tasks.some(t => t.type === 'erase' && t.status === 'running'),
+    [tasks]
+  )
+  
+  const isCorrect = useMemo(() => 
+    tasks.some(t => t.type === 'correct' && t.status === 'running'),
     [tasks]
   )
   
@@ -449,9 +449,9 @@ export function useImageUpload(): UseImageUploadReturn {
       if (!imageSource) throw new Error('无法获取图片数据')
       
       updateTaskProgress(taskId, 50, '正在擦除笔迹...')
-      message.loading({ content: '正在擦除笔迹...', key: 'erase' })
-      
-      const result = await eraseHandwriting(imageSource, 'auto')
+      message.loading({ content: '正在使用AI擦除笔迹...', key: 'erase' })
+
+      const result = await eraseHandwriting(imageSource, 'ai')
       
       if (result.success && result.image) {
         setImages(prev => prev.map(img => 
@@ -498,8 +498,8 @@ export function useImageUpload(): UseImageUploadReturn {
         if (!imageSource) continue
         
         updateTaskProgress(taskId, Math.round(((i + 1) / images.length) * 100), `正在擦除 ${i + 1}/${images.length}...`)
-        
-        const result = await eraseHandwriting(imageSource, 'auto')
+
+        const result = await eraseHandwriting(imageSource, 'ai')
         
         if (result.success && result.image) {
           setImages(prev => prev.map(img => 
@@ -542,42 +542,59 @@ export function useImageUpload(): UseImageUploadReturn {
     
     let successCount = 0
     let correctedCount = 0
+    let failCount = 0
     
-    for (let i = 0; i < images.length; i++) {
-      const image = images[i]
-      
-      try {
-        const imageSource = await getImageSource(image)
-        if (!imageSource) continue
-        
-        updateTaskProgress(taskId, Math.round(((i + 1) / images.length) * 100), `正在矫正 ${i + 1}/${images.length}...`)
-        
-        const result = await correctImage(imageSource)
-        if (result.success && result.image) {
-          setImages(prev => prev.map(img => 
-            img.id === image.id 
-              ? { ...img, thumbnail: result.image, base64Data: result.image } 
-              : img
-          ))
-          successCount++
-          if (result.corrected) {
-            correctedCount++
-          }
+    try {
+      for (let i = 0; i < images.length; i++) {
+        // 检查任务是否被取消
+        if (isTaskCancelled(taskId)) {
+          message.info('已取消批量矫正')
+          return
         }
         
-        message.loading({ 
-          content: `正在批量矫正图片 (${i + 1}/${images.length})...`,
-          key: 'correctAll', 
-          duration: 0 
-        })
-      } catch (error) {
-        console.error(`矫正图片 ${image.name} 失败:`, error)
+        const image = images[i]
+        
+        try {
+          const imageSource = await getImageSource(image)
+          if (!imageSource) continue
+          
+          updateTaskProgress(taskId, Math.round(((i + 1) / images.length) * 100), `正在矫正 ${i + 1}/${images.length}...`)
+          
+          const result = await correctImage(imageSource)
+          if (result.success && result.image) {
+            setImages(prev => prev.map(img => 
+              img.id === image.id 
+                ? { ...img, thumbnail: result.image, base64Data: result.image } 
+                : img
+            ))
+            successCount++
+            if (result.corrected) {
+              correctedCount++
+            }
+          }
+          
+          message.loading({ 
+            content: `正在批量矫正图片 (${i + 1}/${images.length})...`,
+            key: 'correctAll', 
+            duration: 0 
+          })
+        } catch (error) {
+          console.error(`矫正图片 ${image.name} 失败:`, error)
+          failCount++
+        }
       }
+      
+      completeTask(taskId)
+      if (failCount > 0) {
+        message.success({ content: `批量矫正完成，成功 ${successCount} 张，失败 ${failCount} 张，其中 ${correctedCount} 张进行了矫正`, key: 'correctAll' })
+      } else {
+        message.success({ content: `批量矫正完成，成功处理 ${successCount} 张图片，其中 ${correctedCount} 张进行了矫正`, key: 'correctAll' })
+      }
+    } catch (error) {
+      failTask(taskId, error instanceof Error ? error.message : String(error))
+      message.error({ content: '批量矫正失败: ' + (error instanceof Error ? error.message : String(error)), key: 'correctAll' })
     }
-    
-    completeTask(taskId)
-    message.success({ content: `批量矫正完成，成功处理 ${successCount} 张图片，其中 ${correctedCount} 张进行了矫正`, key: 'correctAll' })
-  }, [images, startTask, updateTaskProgress, completeTask, setImages])
+  }, [images, startTask, updateTaskProgress, completeTask, failTask, isTaskCancelled, setImages])
 
   /**
    * 处理拖拽上传
@@ -625,6 +642,7 @@ export function useImageUpload(): UseImageUploadReturn {
     handleEraseHandwriting,
     handleEraseAll,
     handleCorrectAll,
+    isCorrect,
     handleDragUpload,
     handleCancelTask
   }

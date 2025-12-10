@@ -826,6 +826,9 @@ function registerPaddleOcrHandlers(): void {
     auto_crop?: boolean
   } = {}) => {
     try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 60000) // 60秒超时
+      
       const response = await fetch(`${OCR_SERVER_URL}/correct-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -834,14 +837,21 @@ function registerPaddleOcrHandlers(): void {
           auto_perspective: options.auto_perspective ?? true,
           auto_rotate: options.auto_rotate ?? true,
           auto_crop: options.auto_crop ?? true
-        })
+        }),
+        signal: controller.signal
       })
+      clearTimeout(timeout)
+      
       if (!response.ok) {
         throw new Error(`图片矫正服务错误: ${response.status}`)
       }
       const result = await response.json()
       return { success: true, data: result }
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.error('[PaddleOCR] 图片矫正超时')
+        return { success: false, error: '图片矫正超时，请尝试压缩图片后重试' }
+      }
       console.error('[PaddleOCR] 图片矫正失败:', error)
       return { success: false, error: String(error) }
     }
