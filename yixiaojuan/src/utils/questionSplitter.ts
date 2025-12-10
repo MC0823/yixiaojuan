@@ -10,6 +10,9 @@
  */
 import Tesseract from 'tesseract.js'
 
+// 调试模式开关（生产环境设置为false）
+const DEBUG_SPLITTER = false
+
 /**
  * 题目边界信息
  */
@@ -291,7 +294,7 @@ export class QuestionSplitter {
     onProgress?.(80, '正在分析题目结构...')
     
     const lines = result.data.lines || []
-    console.log('[QuestionSplitter V2] 开始分析，共', lines.length, '行')
+    DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 开始分析，共', lines.length, '行')
     
     // 第一阶段：收集所有可能的题号候选
     const candidates: Array<{
@@ -321,13 +324,13 @@ export class QuestionSplitter {
       const sectionCheck = isSectionTitle(lineText)
       if (sectionCheck.isSection) {
         foundSectionTitle = true
-        headerEndY = Math.max(headerEndY, line.bbox.y0)  // 大题标题之前都是头部
-        console.log('[QuestionSplitter V2] 检测到大题标题:', lineText, 'Y:', line.bbox.y0)
+        headerEndY = Math.max(headerEndY, line.bbox.y0)
+        DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 检测到大题标题:', lineText, 'Y:', line.bbox.y0)
         continue
       }
     }
     
-    console.log('[QuestionSplitter V2] 头部区域结束 Y:', headerEndY, '检测到大题标题:', foundSectionTitle)
+    DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 头部区域结束 Y:', headerEndY, '检测到大题标题:', foundSectionTitle)
     
     // 第二次扫描：收集所有题号候选
     for (let i = 0; i < lines.length; i++) {
@@ -353,11 +356,11 @@ export class QuestionSplitter {
           text: lineText,
           confidence: checkResult.confidence
         })
-        console.log('[QuestionSplitter V2] 候选题目', checkResult.number, ':', lineText.substring(0, 30))
+        DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 候选题目', checkResult.number, ':', lineText.substring(0, 30))
       }
     }
     
-    console.log('[QuestionSplitter V2] 找到', candidates.length, '个候选题目')
+    DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 找到', candidates.length, '个候选题目')
     
     // 第二阶段：智能过滤和验证
     const bounds: QuestionBound[] = []
@@ -368,21 +371,20 @@ export class QuestionSplitter {
       
       // 跳过重复题号（优先保留第一个）
       if (usedNumbers.has(questionNum)) {
-        console.log('[QuestionSplitter V2] 跳过重复题号:', questionNum)
+        DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 跳过重复题号:', questionNum)
         continue
       }
       
       // 验证内容有效性
       if (!isValidQuestionContent(text)) {
-        console.log('[QuestionSplitter V2] 跳过无效内容:', text.substring(0, 30))
+        DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 跳过无效内容:', text.substring(0, 30))
         continue
       }
       
       // 检查题号顺序的合理性（不要求严格连续，但要递增）
       const lastNum = bounds.length > 0 ? bounds[bounds.length - 1].index : 0
       if (questionNum <= lastNum && questionNum !== 1) {
-        // 题号倒退且不是新大题开始，可能是干扰
-        console.log('[QuestionSplitter V2] 跳过题号倒退:', questionNum, '上一题:', lastNum)
+        DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 跳过题号倒退:', questionNum, '上一题:', lastNum)
         continue
       }
       
@@ -401,12 +403,12 @@ export class QuestionSplitter {
       })
       
       usedNumbers.add(questionNum)
-      console.log('[QuestionSplitter V2] 确认题目', questionNum, ':', text.substring(0, 20))
+      DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 确认题目', questionNum, ':', text.substring(0, 20))
     }
     
     // 第三阶段：补充检测 - 如果题目数量过少，尝试更宽松的匹配
     if (bounds.length < 3 && candidates.length > bounds.length) {
-      console.log('[QuestionSplitter V2] 题目数量过少，尝试放宽条件...')
+      DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 题目数量过少，尝试放宽条件...')
       // 重新处理，跳过选项验证
       for (const candidate of candidates) {
         const { questionNum, line, text } = candidate
@@ -424,7 +426,7 @@ export class QuestionSplitter {
             questionType: 'unknown'
           })
           usedNumbers.add(questionNum)
-          console.log('[QuestionSplitter V2] 放宽后确认题目', questionNum)
+          DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 放宽后确认题目', questionNum)
         }
       }
     }
@@ -444,7 +446,7 @@ export class QuestionSplitter {
     }
     
     onProgress?.(100, `识别到 ${bounds.length} 道题目`)
-    console.log('[QuestionSplitter V2] 最终识别到', bounds.length, '道题目')
+    DEBUG_SPLITTER && console.log('[QuestionSplitter V2] 最终识别到', bounds.length, '道题目')
     
     return bounds
   }
