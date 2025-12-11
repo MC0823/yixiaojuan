@@ -30,7 +30,6 @@ interface AppState {
   settings: {
     autoSave: boolean
     theme: 'light' | 'dark' | 'system'
-    language: 'zh-CN' | 'en-US'
     cloudSync: boolean
   }
   
@@ -57,7 +56,6 @@ export const useAppStore = create<AppState>()(
       settings: {
         autoSave: true,
         theme: 'light',
-        language: 'zh-CN',
         cloudSync: false
       },
       

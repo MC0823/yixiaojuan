@@ -9,5 +9,4 @@ export {
 } from './useKeyboardShortcuts'
 
 export { useTheme, type ThemeMode } from './useTheme'
-export { useLanguage, type Language, type TranslationKey } from './useLanguage'
 export { useCoursewareEditor } from './useCoursewareEditor'

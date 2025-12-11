@@ -252,16 +252,6 @@ function SettingsPage() {
             <Switch />
           </Form.Item>
           
-          <Form.Item name="language" label="界面语言">
-            <Select
-              options={[
-                { value: 'zh-CN', label: '简体中文' },
-                { value: 'en-US', label: 'English' }
-              ]}
-              style={{ width: 200 }}
-            />
-          </Form.Item>
-          
           <Form.Item name="theme" label="主题模式">
             <Select
               options={[

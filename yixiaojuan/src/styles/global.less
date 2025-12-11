@@ -2,6 +2,7 @@
  * 全局样式
  */
 @import './variables.less';
+@import './theme.less';
 
 * {
   margin: 0;
@@ -12,10 +13,11 @@
 html, body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: @font-size-base;
-  color: white;
-  background: @gradient-primary !important;
+  color: var(--text-on-gradient);
+  background: var(--gradient-primary) !important;
   min-height: 100vh;
   overflow: hidden;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
 #root {
@@ -34,18 +36,18 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: fade(@primary-color, 40%);
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: fade(@primary-color, 60%);
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* 选中文字颜色 */
 ::selection {
-  background: fade(@primary-color, 30%);
-  color: @text-primary;
+  background: rgba(46, 196, 182, 0.3);
+  color: var(--text-on-gradient);
 }
 
 /* 毛玻璃效果基础类 */
@@ -132,96 +134,96 @@ html, body {
 
 /* Select 下拉框全局样式 */
 .ant-select-dropdown {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--popup-border);
   border-radius: @border-radius-base;
   
   .ant-select-item {
-    color: white;
+    color: var(--text-on-gradient);
     
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--glass-bg-light);
     }
   }
   
   .ant-select-item-option-selected {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: white;
+    background: var(--glass-bg-medium) !important;
+    color: var(--text-on-gradient);
   }
   
   .ant-select-item-option-active {
-    background: rgba(255, 255, 255, 0.15) !important;
+    background: var(--glass-bg-light) !important;
   }
 }
 
 /* Modal 弹窗全局样式 */
 .ant-modal-content {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
   backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--popup-border);
   border-radius: @border-radius-xl;
   
   .ant-modal-header {
     background: transparent;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 1px solid var(--glass-border);
     
     .ant-modal-title {
-      color: white;
+      color: var(--text-on-gradient);
     }
   }
   
   .ant-modal-body {
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-secondary);
   }
   
   .ant-modal-footer {
-    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    border-top: 1px solid var(--glass-border);
   }
   
   .ant-modal-close {
-    color: rgba(255, 255, 255, 0.7);
+    color: var(--text-tertiary);
     
     &:hover {
-      color: white;
+      color: var(--text-on-gradient);
     }
   }
 }
 
 .ant-modal-confirm-body {
   .ant-modal-confirm-title {
-    color: white !important;
+    color: var(--text-on-gradient) !important;
   }
   
   .ant-modal-confirm-content {
-    color: rgba(255, 255, 255, 0.85) !important;
+    color: var(--text-secondary) !important;
   }
 }
 
 /* Popover 气泡全局样式 */
 .ant-popover-inner {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--popup-border);
   border-radius: @border-radius-base;
 }
 
 .ant-popover-arrow::before {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
 }
 
 /* Dropdown 下拉菜单全局样式 */
 .ant-dropdown-menu {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--popup-border);
   border-radius: @border-radius-base;
   
   .ant-dropdown-menu-item {
-    color: white;
+    color: var(--text-on-gradient);
     
     &:hover {
-      background: rgba(255, 255, 255, 0.1);
+      background: var(--glass-bg-light);
     }
   }
   
@@ -236,14 +238,14 @@ html, body {
 
 /* Tooltip 提示全局样式 */
 .ant-tooltip-inner {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: white;
+  border: 1px solid var(--glass-border);
+  color: var(--text-on-gradient);
 }
 
 .ant-tooltip-arrow::before {
-  background: rgba(30, 100, 90, 0.95) !important;
+  background: var(--popup-bg) !important;
 }
 
 /* Card 卡片全局样式 - 透明背景 */

@@ -1,11 +1,12 @@
 /**
  * 应用根组件
  */
-import { ConfigProvider, theme as antdTheme } from 'antd'
+import { ConfigProvider, App as AntdApp, theme as antdTheme } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
 import { RouterProvider } from 'react-router-dom'
 import { router } from './router'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { useTheme, useLanguage } from './hooks'
+import { useTheme } from './hooks'
 
 // Ant Design 主题配置 - 毛璃璃风格
 const getThemeConfig = (isDark: boolean) => ({
@@ -41,11 +42,12 @@ const getThemeConfig = (isDark: boolean) => ({
 
 function AppContent() {
   const { isDark } = useTheme()
-  const { antdLocale } = useLanguage()
   
   return (
-    <ConfigProvider locale={antdLocale} theme={getThemeConfig(isDark)}>
-      <RouterProvider router={router} />
+    <ConfigProvider locale={zhCN} theme={getThemeConfig(isDark)}>
+      <AntdApp>
+        <RouterProvider router={router} />
+      </AntdApp>
     </ConfigProvider>
   )
 }

@@ -2,6 +2,7 @@
  * 全屏讲解课件页面样式 - 统一毛玻璃风格
  */
 @import '../../styles/variables.less';
+@import '../../styles/theme.less';
 
 .container {
   position: fixed;
@@ -11,9 +12,10 @@
   bottom: 0;
   display: flex;
   flex-direction: column;
-  background: @gradient-primary;
-  color: #fff;
+  background: var(--gradient-primary);
+  color: var(--text-on-gradient);
   z-index: 1000;
+  transition: background 0.3s ease;
   
   &.dragging {
     cursor: col-resize;
@@ -28,18 +30,18 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: @gradient-primary;
-  color: #fff;
+  background: var(--gradient-primary);
+  color: var(--text-on-gradient);
   gap: 16px;
   
   :global(.ant-spin-dot-item) {
-    background-color: white;
+    background-color: var(--text-on-gradient);
   }
   
   :global(.ant-btn) {
-    background: @btn-primary-bg;
+    background: var(--btn-primary-bg);
     border: none;
-    color: @primary-color;
+    color: var(--primary-color);
   }
 }
 
@@ -50,9 +52,9 @@
   justify-content: space-between;
   height: @header-height;
   padding: 0 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--gradient-header);
   backdrop-filter: @glass-blur;
-  border-bottom: 1px solid @glass-border;
+  border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
 }
 
@@ -68,7 +70,7 @@
   .title {
     font-size: 16px;
     font-weight: 600;
-    color: #fff;
+    color: var(--text-on-gradient);
   }
 }
 
@@ -78,15 +80,15 @@
   gap: 12px;
   
   .navBtn {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid @glass-border;
-    color: white;
+    background: var(--btn-glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-on-gradient);
     width: 36px;
     height: 36px;
     
     &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.25);
-      border-color: @glass-border-hover;
+      background: var(--btn-glass-hover-bg);
+      border-color: var(--glass-border-hover);
     }
     
     &:disabled {
@@ -98,11 +100,11 @@
 
 .progress {
   padding: 6px 16px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--glass-bg-medium);
   border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
-  color: white;
+  color: var(--text-on-gradient);
   min-width: 80px;
   text-align: center;
 }
@@ -112,14 +114,14 @@
   gap: 8px;
   
   :global(.ant-btn) {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--btn-glass-bg);
     backdrop-filter: @glass-blur;
-    border: 1px solid @glass-border;
-    color: white;
+    border: 1px solid var(--glass-border);
+    color: var(--text-on-gradient);
     
     &:hover {
-      background: rgba(255, 255, 255, 0.25);
-      border-color: @glass-border-hover;
+      background: var(--btn-glass-hover-bg);
+      border-color: var(--glass-border-hover);
     }
   }
   
@@ -141,14 +143,14 @@
   gap: 8px;
   
   .recordBtn {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid @glass-border !important;
-    color: white !important;
+    background: var(--btn-glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-on-gradient) !important;
     min-width: 90px;
     
     &:hover {
-      background: rgba(255, 255, 255, 0.25) !important;
-      border-color: @glass-border-hover !important;
+      background: var(--btn-glass-hover-bg) !important;
+      border-color: var(--glass-border-hover) !important;
     }
     
     &.recording {
@@ -164,13 +166,13 @@
   }
   
   .exportMediaBtn {
-    background: rgba(255, 255, 255, 0.15) !important;
-    border: 1px solid @glass-border !important;
-    color: white !important;
+    background: var(--btn-glass-bg) !important;
+    border: 1px solid var(--glass-border) !important;
+    color: var(--text-on-gradient) !important;
     
     &:hover {
-      background: rgba(255, 255, 255, 0.25) !important;
-      border-color: @glass-border-hover !important;
+      background: var(--btn-glass-hover-bg) !important;
+      border-color: var(--glass-border-hover) !important;
     }
   }
 }

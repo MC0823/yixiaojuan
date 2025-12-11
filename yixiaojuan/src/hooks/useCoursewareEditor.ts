@@ -3,7 +3,7 @@
  * 封装题目编辑、选项管理、撤销重做等核心逻辑
  */
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { message, Modal } from 'antd'
+import { App, Modal } from 'antd'
 
 interface QuestionData {
   id: string
@@ -26,6 +26,7 @@ export function useCoursewareEditor(
   selectedId: string | null,
   options: UseCoursewareEditorOptions = {}
 ) {
+  const { message } = App.useApp()
   const { onSaveSuccess } = options
 
   // 题目列表状态

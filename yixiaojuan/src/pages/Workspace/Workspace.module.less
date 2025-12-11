@@ -1,4 +1,5 @@
 @import '../../styles/variables.less';
+@import '../../styles/theme.less';
 
 // 主容器 - 全屏渐变背景
 .container {
@@ -6,8 +7,9 @@
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: @gradient-primary;
+  background: var(--gradient-primary);
   overflow: hidden;
+  transition: background 0.3s ease;
 }
 
 // 顶部栏 - 统一单行布局
@@ -18,9 +20,9 @@
   position: relative;
   height: 56px;
   padding: 0 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--gradient-header);
   backdrop-filter: @glass-blur;
-  border-bottom: 1px solid @glass-border;
+  border-bottom: 1px solid var(--glass-border);
   flex-shrink: 0;
   
   .headerLeft {
@@ -53,7 +55,7 @@
     .logoText {
       font-size: 18px;
       font-weight: 600;
-      color: white;
+      color: var(--text-on-gradient);
       letter-spacing: 1px;
     }
   }
@@ -61,7 +63,7 @@
   .settingsBtn {
     background: transparent !important;
     border: none !important;
-    color: rgba(255, 255, 255, 0.8) !important;
+    color: var(--text-secondary) !important;
     font-size: 18px;
     width: 32px;
     height: 32px;
@@ -69,13 +71,13 @@
     margin-left: 4px;
     
     &:hover {
-      background: rgba(255, 255, 255, 0.1) !important;
-      color: white !important;
+      background: var(--glass-bg-light) !important;
+      color: var(--text-on-gradient) !important;
     }
   }
   
   .saveHint {
-    color: rgba(255, 255, 255, 0.75);
+    color: var(--text-tertiary);
     font-size: 13px;
     margin-left: 12px;
     animation: fadeInOut 1.5s ease-in-out;
@@ -91,14 +93,14 @@
   .divider {
     width: 1px;
     height: 20px;
-    background: rgba(255, 255, 255, 0.2);
+    background: var(--glass-border);
     margin: 0 4px;
   }
   
   .courseTitle {
     font-size: 14px;
     font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-secondary);
     max-width: 200px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -109,26 +111,26 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--text-secondary);
     font-size: 14px;
     font-weight: 500;
     padding: 6px 16px;
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--glass-bg-medium);
     border-radius: 20px;
   }
 }
 
 // 统一工具按钮样式
 .toolBtn {
-  background: rgba(255, 255, 255, 0.15) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
-  color: white !important;
+  background: var(--btn-glass-bg) !important;
+  border: 1px solid var(--btn-glass-border) !important;
+  color: var(--text-on-gradient) !important;
   border-radius: 6px !important;
   height: 34px !important;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
-    border-color: rgba(255, 255, 255, 0.3) !important;
+    background: var(--btn-glass-hover-bg) !important;
+    border-color: var(--glass-border-hover) !important;
   }
   
   :global(.anticon) {
@@ -138,16 +140,16 @@
 
 // 主按钮样式（新建课件）
 .primaryBtn {
-  background: @btn-primary-bg !important;
+  background: var(--btn-primary-bg) !important;
   border: none !important;
-  color: @primary-color !important;
+  color: var(--primary-color) !important;
   font-weight: 500;
   border-radius: 6px !important;
   height: 34px !important;
   
   &:hover {
     background: rgba(255, 255, 255, 0.9) !important;
-    color: @primary-color-dark !important;
+    color: var(--primary-color-dark) !important;
   }
 }
 

@@ -23,7 +23,9 @@
       "Bash(ping:*)",
       "Bash(pip install:*)",
       "Bash(python -c:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(wc:*)",
+      "Bash(test:*)"
     ],
     "deny": [],
     "ask": []

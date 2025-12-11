@@ -6,9 +6,30 @@
 // 调试模式开关
 const DEBUG_OCR = false
 
-// 服务启动状态
-let isServiceStarting = false
-let serviceStartPromise: Promise<boolean> | null = null
+/**
+ * OCR服务管理类
+ */
+class OcrServiceManager {
+  private isServiceStarting = false
+  private serviceStartPromise: Promise<boolean> | null = null
+
+  getStartingState() {
+    return {
+      isStarting: this.isServiceStarting,
+      promise: this.serviceStartPromise
+    }
+  }
+
+  setStarting(starting: boolean) {
+    this.isServiceStarting = starting
+  }
+
+  setPromise(promise: Promise<boolean> | null) {
+    this.serviceStartPromise = promise
+  }
+}
+
+const ocrServiceManager = new OcrServiceManager()
 
 /**
  * 检查 OCR 服务是否可用
@@ -41,10 +62,12 @@ export async function startOcrService(
     return false
   }
 
+  const state = ocrServiceManager.getStartingState()
+
   // 如果已经在启动中，等待现有的启动完成
-  if (isServiceStarting && serviceStartPromise) {
+  if (state.isStarting && state.promise) {
     onProgress?.(50, 'OCR 服务正在启动中...')
-    return await serviceStartPromise
+    return await state.promise
   }
 
   // 先检查服务是否已运行
@@ -54,15 +77,15 @@ export async function startOcrService(
     return true
   }
 
-  isServiceStarting = true
+  ocrServiceManager.setStarting(true)
   onProgress?.(5, '正在启动 OCR 服务...')
 
-  serviceStartPromise = (async () => {
+  const promise = (async () => {
     try {
       onProgress?.(10, '首次启动需要加载 OCR 模型，约需 30-60 秒...')
-      
+
       const result = await window.electronAPI!.paddleOcr.startService()
-      
+
       if (result.success) {
         onProgress?.(100, 'OCR 服务启动成功')
         DEBUG_OCR && console.log('[PaddleOCR] 服务启动成功')
@@ -77,12 +100,13 @@ export async function startOcrService(
       onProgress?.(0, `启动异常: ${error}`)
       return false
     } finally {
-      isServiceStarting = false
-      serviceStartPromise = null
+      ocrServiceManager.setStarting(false)
+      ocrServiceManager.setPromise(null)
     }
   })()
 
-  return await serviceStartPromise
+  ocrServiceManager.setPromise(promise)
+  return await promise
 }
 
 /**
@@ -197,6 +221,14 @@ export interface CorrectResult {
     perspective_applied: boolean  // 是否进行了透视矫正
     rotation_angle: number  // 旋转角度
     cropped: boolean  // 是否进行了裁剪
+    enhanced: boolean  // 是否进行了增强
+    enhance_details?: {  // 增强详情
+      shadow_removed: boolean
+      contrast_enhanced: boolean
+      sharpened: boolean
+      denoised: boolean
+      white_balanced: boolean
+    }
   }
 }
 
@@ -207,6 +239,7 @@ export interface CorrectOptions {
   auto_perspective?: boolean  // 自动透视矫正
   auto_rotate?: boolean  // 自动旋转矫正
   auto_crop?: boolean  // 自动裁剪白边
+  enhance?: boolean  // 图像增强（去阴影、对比度、锐化、去噪）
 }
 
 /**
@@ -233,10 +266,12 @@ export async function correctImage(
       success: true,
       image: result.data?.image || '',
       corrected: result.data?.corrected || false,
-      details: result.data?.details || {
-        perspective_applied: false,
-        rotation_angle: 0,
-        cropped: false
+      details: {
+        perspective_applied: result.data?.details?.perspective_applied || false,
+        rotation_angle: result.data?.details?.rotation_angle || 0,
+        cropped: result.data?.details?.cropped || false,
+        enhanced: result.data?.details?.enhanced || false,
+        enhance_details: result.data?.details?.enhance_details
       }
     }
   } catch (error) {

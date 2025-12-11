@@ -1,5 +1,3 @@
-import { message } from 'antd';
-
 /**
  * 应用错误类
  */
@@ -16,21 +14,21 @@ export class AppError extends Error {
 
 /**
  * 错误处理器
+ * 注意：不再自动显示message，由调用方使用App.useApp().message处理
  */
 export class ErrorHandler {
   /**
-   * 统一处理错误
+   * 统一处理错误，返回用户友好的错误信息
    * @param error - 错误对象
    * @param context - 错误上下文
+   * @returns 用户友好的错误信息
    */
-  static handle(error: Error, context: string): void {
+  static handle(error: Error, context: string): string {
     console.error(`[${context}]`, error);
 
-    const userMsg = error instanceof AppError
+    return error instanceof AppError
       ? error.userMessage
       : '操作失败,请重试';
-
-    message.error(userMsg);
   }
 }
 

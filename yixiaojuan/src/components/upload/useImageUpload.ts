@@ -4,7 +4,7 @@
  * 状态存储在全局 Store 中，支持切换页面后保持
  */
 import { useCallback, useMemo } from 'react'
-import { message } from 'antd'
+import { App } from 'antd'
 import { paddleOcrSplit, checkOcrServerHealth, eraseHandwriting, correctImage, ensureOcrServiceReady } from '../../services/paddleOcrService'
 import { QuestionSplitter } from '../../utils/questionSplitter'
 import { useUploadStore } from '../../stores'
@@ -73,6 +73,9 @@ async function getImageSource(image: UploadImageItem): Promise<string | null> {
 }
 
 export function useImageUpload(): UseImageUploadReturn {
+  // 使用 App.useApp() 获取 message 实例，支持动态主题
+  const { message } = App.useApp()
+  
   // 使用全局 Store 管理状态，支持切换页面后保持
   const {
     images,
@@ -146,9 +149,11 @@ export function useImageUpload(): UseImageUploadReturn {
             const thumbResult = await window.electronAPI.image.createThumbnail(filePath, 200, 200)
             if (thumbResult.success && thumbResult.data) {
               thumbnail = thumbResult.data
+            } else {
+              console.warn('缩略图生成失败:', thumbResult.error)
             }
           } catch (e) {
-            console.warn('缩略图生成失败:', e)
+            console.warn('缩略图生成异常:', e)
           }
           
           newImages.push({
@@ -230,10 +235,16 @@ export function useImageUpload(): UseImageUploadReturn {
     }
     
     try {
+      // 检查是否已取消
+      if (isTaskCancelled(taskId)) {
+        message.info('已取消切题')
+        return
+      }
+
       const imageSource = await getImageSource(image)
       if (!imageSource) throw new Error('无法获取图片数据')
-      
-      // 检查是否已取消
+
+      // 再次检查是否已取消
       if (isTaskCancelled(taskId)) {
         message.info('已取消切题')
         return
@@ -302,6 +313,8 @@ export function useImageUpload(): UseImageUploadReturn {
         }
       }
       
+      // 使用完整路径作为分组标识，确保不同文件夹的同名文件不会被合并
+      const sourceKey = image.path || image.name
       const sourceName = image.name.replace(/\.(jpg|jpeg|png|gif|bmp|webp)$/i, '')
       const newImages: UploadImageItem[] = splitQuestions.map((q, idx) => ({
         id: `split_${Date.now()}_${idx}`,
@@ -312,7 +325,7 @@ export function useImageUpload(): UseImageUploadReturn {
         ocrText: q.ocrText,
         stem: q.stem,
         options: q.options,
-        sourceImage: sourceName
+        sourceImage: sourceKey  // 使用完整路径作为分组标识
       }))
       
       setImages(prev => {
@@ -386,6 +399,8 @@ export function useImageUpload(): UseImageUploadReturn {
           const result = await paddleOcrSplit(imageSource)
 
           if (result.success && result.questions.length > 0) {
+            // 使用完整路径作为分组标识，确保不同文件夹的同名文件不会被合并
+            const sourceKey = image.path || image.name
             const sourceName = image.name.replace(/\.(jpg|jpeg|png|gif|bmp|webp)$/i, '')
             const newImages: UploadImageItem[] = result.questions.map((q, idx) => ({
               id: `split_${Date.now()}_${i}_${idx}`,
@@ -396,7 +411,7 @@ export function useImageUpload(): UseImageUploadReturn {
               ocrText: q.ocrText,
               stem: q.stem,
               options: q.options,
-              sourceImage: sourceName
+              sourceImage: sourceKey  // 使用完整路径作为分组标识
             }))
             allNewImages.push(...newImages)
             processedIds.push(image.id)
@@ -602,7 +617,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const handleDragUpload = useCallback((file: File) => {
     const id = generateId()
     const reader = new FileReader()
-    
+
     reader.onload = (e) => {
       const base64 = e.target?.result as string
       setImages(prev => [...prev, {
@@ -613,8 +628,13 @@ export function useImageUpload(): UseImageUploadReturn {
         base64Data: base64
       }])
     }
+
+    reader.onerror = () => {
+      message.error('文件读取失败')
+    }
+
     reader.readAsDataURL(file)
-  }, [setImages])
+  }, [setImages, message])
 
   /**
    * 取消任务

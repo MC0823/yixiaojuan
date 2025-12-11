@@ -9,6 +9,16 @@ interface CoursewarePreviewModalProps {
   onCancel: () => void
 }
 
+/**
+ * 从完整路径提取文件名（不含扩展名）
+ */
+function getDisplayName(path: string): string {
+  // 提取文件名（处理 Windows 和 Unix 路径）
+  const fileName = path.split(/[\\/]/).pop() || path
+  // 移除扩展名
+  return fileName.replace(/\.(jpg|jpeg|png|gif|bmp|webp)$/i, '')
+}
+
 export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }: CoursewarePreviewModalProps) {
   const [mode, setMode] = useState<'merge' | 'separate'>('separate')
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
@@ -19,14 +29,21 @@ export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }:
 
     const groupMap = new Map<string, UploadImageItem[]>()
     images.forEach(img => {
-      const group = img.sourceImage || '未分组'
-      if (!groupMap.has(group)) {
-        groupMap.set(group, [])
+      // 使用完整路径作为分组key，确保不同文件夹的同名文件不会被合并
+      const groupKey = img.sourceImage || '未分组'
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, [])
       }
-      groupMap.get(group)!.push(img)
+      groupMap.get(groupKey)!.push(img)
     })
-    const result = Array.from(groupMap.entries()).map(([name, items]) => ({ name, items, count: items.length }))
-    console.log('[CoursewarePreviewModal] 分组结果:', result.map(g => ({ name: g.name, count: g.count })))
+    // 保存完整路径作为key，但显示时只用文件名
+    const result = Array.from(groupMap.entries()).map(([key, items]) => ({ 
+      key,  // 完整路径，用于分组标识
+      displayName: getDisplayName(key),  // 显示名称
+      items, 
+      count: items.length 
+    }))
+    console.log('[CoursewarePreviewModal] 分组结果:', result.map(g => ({ key: g.key, displayName: g.displayName, count: g.count })))
     console.log('[CoursewarePreviewModal] hasMultipleGroups:', result.length > 1)
     return result
   }, [images])
@@ -69,14 +86,14 @@ export function CoursewarePreviewModal({ visible, images, onConfirm, onCancel }:
           <div style={{ marginBottom: 8 }}><strong>选择要创建的试卷：</strong></div>
           <Checkbox.Group
             value={selectedGroups}
-            onChange={setSelectedGroups as any}
+            onChange={(values) => setSelectedGroups(values as string[])}
             style={{ width: '100%' }}
           >
             <Space direction="vertical" style={{ width: '100%' }}>
               {groups.map(group => (
-                <Checkbox key={group.name} value={group.name}>
+                <Checkbox key={group.key} value={group.key}>
                   <Space>
-                    <span>{group.name}</span>
+                    <span>{group.displayName}</span>
                     <Tag>{group.count} 道题</Tag>
                   </Space>
                 </Checkbox>

@@ -43,6 +43,7 @@ def get_ocr_engine():
     global ocr_engine
     if ocr_engine is None:
         from paddleocr import PaddleOCR
+        # 使用最简单配置，避免版本兼容问题
         ocr_engine = PaddleOCR(lang='ch')
         print("[OCR] PaddleOCR 引擎加载完成")
     return ocr_engine
@@ -384,14 +385,22 @@ def decode_image(image_data: str) -> np.ndarray:
     if image.mode == 'RGBA':
         image = image.convert('RGB')
     
-    # 压缩图片以提升OCR速度
-    max_size = 1600  # 最大边长
+    # 高分辨率保留 - 只压缩超大图片，保持OCR精度
+    max_size = 2400  # 提高最大边长，保留更多细节
     width, height = image.size
     if width > max_size or height > max_size:
         ratio = min(max_size / width, max_size / height)
         new_size = (int(width * ratio), int(height * ratio))
         image = image.resize(new_size, Image.Resampling.LANCZOS)
-        print(f"[OCR] 图片压缩: {width}x{height} -> {new_size[0]}x{new_size[1]}")
+        print(f"[OCR] 图片缩放: {width}x{height} -> {new_size[0]}x{new_size[1]}")
+    
+    # 如果图片太小，适当放大以提高识别精度
+    min_size = 800
+    if width < min_size and height < min_size:
+        ratio = min_size / min(width, height)
+        new_size = (int(width * ratio), int(height * ratio))
+        image = image.resize(new_size, Image.Resampling.LANCZOS)
+        print(f"[OCR] 图片放大: {width}x{height} -> {new_size[0]}x{new_size[1]}")
     
     return np.array(image)
 
@@ -478,6 +487,82 @@ def image_to_base64(image: np.ndarray) -> str:
     buffer = io.BytesIO()
     pil_image.save(buffer, format='PNG')
     return 'data:image/png;base64,' + base64.b64encode(buffer.getvalue()).decode()
+
+
+def normalize_punctuation(text: str) -> str:
+    """
+    统一标点符号格式，提高OCR文本的一致性
+    
+    处理规则：
+    1. 题号分隔符统一为 "."
+    2. 选项分隔符统一为 "."
+    3. 中文标点统一为标准形式
+    4. 清理多余空白
+    """
+    if not text:
+        return text
+    
+    # 题号/选项分隔符统一（全角点、钗号、中文冒号等 → 半角点）
+    # 注意：只在题号/选项上下文中转换，避免影响普通文本
+    import re
+    
+    # 题号后的分隔符：1、 1。 1． 1： 1: → 1.
+    text = re.sub(r'(^\s*\d{1,2})\s*[、。．：·:;]\s*', r'\1. ', text)
+    
+    # 选项后的分隔符：A、 A。 A． A： A: → A.
+    text = re.sub(r'([A-Da-d])\s*[、。．：·:;]\s*', r'\1. ', text)
+    
+    # 括号统一：（）→ ()，【】→ []
+    # 注意：保留书名号《》不变，这是中文正常标点
+    text = text.replace('（', '(').replace('）', ')')
+    text = text.replace('【', '[').replace('】', ']')
+    
+    # 常用中文标点规范化（保留中文标点，但统一格式）
+    # 多个空格合并为一个
+    text = re.sub(r'\s+', ' ', text)
+    
+    # 移除标点前的多余空格
+    text = re.sub(r'\s+([,.，。？！])', r'\1', text)
+    
+    # 移除开头结尾的空白
+    text = text.strip()
+    
+    return text
+
+
+def clean_ocr_text(text: str) -> str:
+    """
+    清理OCR识别的文本，移除干扰字符
+    
+    处理：
+    1. 移除乱码和特殊字符
+    2. 统一标点符号
+    3. 清理多余空白
+    """
+    if not text:
+        return text
+    
+    import re
+    
+    # 移除常见的OCR乱码字符
+    noise_chars = [
+        '\ufeff',  # BOM
+        '\u200b',  # 零宽空格
+        '\u200c',  # 零宽非连接符
+        '\u200d',  # 零宽连接符
+        '\xa0',    # 不间断空格
+        '\t',      # 制表符
+    ]
+    for char in noise_chars:
+        text = text.replace(char, ' ')
+    
+    # 移除不可见控制字符（保留换行）
+    text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text)
+    
+    # 统一标点符号
+    text = normalize_punctuation(text)
+    
+    return text
 
 
 @app.get("/")
@@ -851,6 +936,604 @@ async def erase_handwriting(data: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ============= 图片矫正相关函数 =============
+
+def order_points(pts: np.ndarray) -> np.ndarray:
+    """
+    对四个点进行排序：左上、右上、右下、左下
+    """
+    rect = np.zeros((4, 2), dtype="float32")
+    
+    # 左上角的点x+y最小，右下角的点x+y最大
+    s = pts.sum(axis=1)
+    rect[0] = pts[np.argmin(s)]
+    rect[2] = pts[np.argmax(s)]
+    
+    # 右上角的点x-y最大，左下角的点x-y最小
+    diff = np.diff(pts, axis=1)
+    rect[1] = pts[np.argmin(diff)]
+    rect[3] = pts[np.argmax(diff)]
+    
+    return rect
+
+
+def find_document_contour(img_gray: np.ndarray):
+    """
+    查找文档轮廓（试卷边缘）
+    返回四个角点或None
+    """
+    # 高斯模糊降噪
+    blurred = cv2.GaussianBlur(img_gray, (5, 5), 0)
+    
+    # 边缘检测
+    edges = cv2.Canny(blurred, 50, 150)
+    
+    # 膨胀边缘使其更连续
+    kernel = np.ones((3, 3), np.uint8)
+    edges = cv2.dilate(edges, kernel, iterations=2)
+    
+    # 查找轮廓
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contours:
+        return None
+    
+    # 按面积排序，取最大的轮廓
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    
+    for contour in contours[:5]:  # 检查前5个最大的轮廓
+        # 计算轮廓周长
+        peri = cv2.arcLength(contour, True)
+        # 多边形近似
+        approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
+        
+        # 如果是四边形
+        if len(approx) == 4:
+            # 检查面积是否足够大（至少占图片的10%）
+            img_area = img_gray.shape[0] * img_gray.shape[1]
+            contour_area = cv2.contourArea(approx)
+            if contour_area > img_area * 0.1:
+                return approx.reshape(4, 2)
+    
+    return None
+
+
+def perspective_transform(img: np.ndarray, pts: np.ndarray) -> np.ndarray:
+    """
+    透视变换，将倾斜的文档矫正为正视图
+    """
+    rect = order_points(pts)
+    (tl, tr, br, bl) = rect
+    
+    # 计算新图片的宽度
+    widthA = np.sqrt(((br[0] - bl[0]) ** 2) + ((br[1] - bl[1]) ** 2))
+    widthB = np.sqrt(((tr[0] - tl[0]) ** 2) + ((tr[1] - tl[1]) ** 2))
+    maxWidth = max(int(widthA), int(widthB))
+    
+    # 计算新图片的高度
+    heightA = np.sqrt(((tr[0] - br[0]) ** 2) + ((tr[1] - br[1]) ** 2))
+    heightB = np.sqrt(((tl[0] - bl[0]) ** 2) + ((tl[1] - bl[1]) ** 2))
+    maxHeight = max(int(heightA), int(heightB))
+    
+    # 目标点
+    dst = np.array([
+        [0, 0],
+        [maxWidth - 1, 0],
+        [maxWidth - 1, maxHeight - 1],
+        [0, maxHeight - 1]
+    ], dtype="float32")
+    
+    # 计算透视变换矩阵
+    M = cv2.getPerspectiveTransform(rect, dst)
+    
+    # 执行透视变换
+    warped = cv2.warpPerspective(img, M, (maxWidth, maxHeight))
+    
+    return warped
+
+
+def auto_crop_whitespace(img: np.ndarray, padding: int = 10) -> np.ndarray:
+    """
+    自动裁剪白边
+    """
+    # 转为灰度
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+    
+    # 二值化（反转，使内容为白色）
+    _, binary = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY_INV)
+    
+    # 查找非零区域
+    coords = cv2.findNonZero(binary)
+    
+    if coords is None:
+        return img
+    
+    # 获取边界框
+    x, y, w, h = cv2.boundingRect(coords)
+    
+    # 添加padding
+    x = max(0, x - padding)
+    y = max(0, y - padding)
+    w = min(img.shape[1] - x, w + 2 * padding)
+    h = min(img.shape[0] - y, h + 2 * padding)
+    
+    # 裁剪
+    cropped = img[y:y+h, x:x+w]
+    
+    return cropped
+
+
+def detect_and_correct_rotation(img: np.ndarray):
+    """
+    检测并修正图片旋转角度
+    返回矫正后的图片和旋转角度
+    """
+    # 转为灰度
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+    
+    # 边缘检测
+    edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+    
+    # 霍夫直线检测
+    lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=100, maxLineGap=10)
+    
+    if lines is None:
+        return img, 0.0
+    
+    # 计算所有直线的角度
+    angles = []
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+        # 只考虑接近水平或垂直的线
+        if abs(angle) < 45:
+            angles.append(angle)
+        elif abs(angle) > 45 and abs(angle) < 135:
+            angles.append(angle - 90 if angle > 0 else angle + 90)
+    
+    if not angles:
+        return img, 0.0
+    
+    # 计算中位数角度（更稳定）
+    median_angle = np.median(angles)
+    
+    # 如果角度很小，不需要矫正
+    if abs(median_angle) < 0.5:
+        return img, 0.0
+    
+    # 限制旋转角度范围
+    if abs(median_angle) > 15:
+        median_angle = 15 if median_angle > 0 else -15
+    
+    # 旋转图片
+    h, w = img.shape[:2]
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+    
+    # 计算新的边界
+    cos = np.abs(M[0, 0])
+    sin = np.abs(M[0, 1])
+    new_w = int((h * sin) + (w * cos))
+    new_h = int((h * cos) + (w * sin))
+    
+    M[0, 2] += (new_w / 2) - center[0]
+    M[1, 2] += (new_h / 2) - center[1]
+    
+    rotated = cv2.warpAffine(img, M, (new_w, new_h), 
+                             borderMode=cv2.BORDER_CONSTANT, 
+                             borderValue=(255, 255, 255))
+    
+    return rotated, median_angle
+
+
+# ============= 图像增强函数 =============
+
+def remove_shadow(img: np.ndarray) -> np.ndarray:
+    """
+    去除图片阴影 - 温和版本
+    只处理明显的阴影区域，避免过度处理
+    """
+    # 转为灰度图
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+    
+    # 使用更小的核进行形态学开操作
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
+    background = cv2.morphologyEx(gray, cv2.MORPH_DILATE, kernel)
+    
+    # 计算差异图
+    diff = cv2.absdiff(background, gray)
+    
+    # 只有当差异超过阈值时才认为是阴影
+    shadow_mask = diff > 30  # 较高阈值，避免过度处理
+    
+    # 如果阴影区域太少，直接返回原图
+    shadow_ratio = np.sum(shadow_mask) / shadow_mask.size
+    if shadow_ratio < 0.1:  # 阴影面积小于10%，不处理
+        print(f"[Enhance] 阴影比例过小({shadow_ratio:.1%})，跳过去阴影")
+        return img
+    
+    # 只在阴影区域进行亮度补偿
+    if len(img.shape) == 3:
+        result = img.copy().astype(np.float32)
+        for c in range(3):
+            channel = result[:, :, c]
+            # 在阴影区域提亮
+            channel[shadow_mask] = np.clip(
+                channel[shadow_mask] + diff[shadow_mask] * 0.5, 
+                0, 255
+            )
+        return result.astype(np.uint8)
+    else:
+        result = gray.astype(np.float32)
+        result[shadow_mask] = np.clip(
+            result[shadow_mask] + diff[shadow_mask] * 0.5,
+            0, 255
+        )
+        return result.astype(np.uint8)
+
+
+def document_scan_enhance(img: np.ndarray) -> np.ndarray:
+    """
+    文档扫描增强 - 类似扫描王效果
+    将文档背景白化，文字清晰化
+    """
+    # 转为灰度
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img.copy()
+    
+    # 1. 去噪（保留边缘）
+    denoised = cv2.bilateralFilter(gray, d=9, sigmaColor=75, sigmaSpace=75)
+    
+    # 2. 使用大核提取背景（去除不均匀光照）
+    kernel_size = max(img.shape[0], img.shape[1]) // 10
+    if kernel_size % 2 == 0:
+        kernel_size += 1
+    kernel_size = min(kernel_size, 101)  # 限制最大核大小
+    kernel_size = max(kernel_size, 21)   # 最小核大小
+    
+    background = cv2.morphologyEx(denoised, cv2.MORPH_DILATE, 
+                                   cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size)))
+    
+    # 3. 差异图 + 归一化
+    diff = cv2.absdiff(background, denoised)
+    
+    # 4. 对比度拉伸
+    diff_normalized = cv2.normalize(diff, None, 0, 255, cv2.NORM_MINMAX)
+    
+    # 5. 反转（文字变黑，背景变白）
+    result = 255 - diff_normalized
+    
+    # 6. 进一步提高对比度
+    # 使用自适应阈值进行文字增强
+    # 计算平均亮度作为基准
+    mean_val = np.mean(result)
+    
+    # 文字区域（较暗）变更暗，背景区域（较亮）变更亮
+    result = result.astype(np.float32)
+    
+    # 背景区域提亮到纯白
+    result[result > mean_val] = np.clip(result[result > mean_val] * 1.2 + 30, 0, 255)
+    
+    # 文字区域加深
+    result[result <= mean_val] = np.clip(result[result <= mean_val] * 0.8, 0, 255)
+    
+    result = result.astype(np.uint8)
+    
+    # 7. 轻微锐化
+    result = cv2.GaussianBlur(result, (0, 0), 1)
+    result = cv2.addWeighted(result, 1.5, cv2.GaussianBlur(result, (0, 0), 3), -0.5, 0)
+    
+    # 转回彩色（文档模式输出灰度即可）
+    if len(img.shape) == 3:
+        result = cv2.cvtColor(result, cv2.COLOR_GRAY2BGR)
+    
+    return result
+
+
+def enhance_contrast(img: np.ndarray) -> np.ndarray:
+    """
+    增强对比度
+    使用CLAHE（自适应直方图均衡化）
+    """
+    # 转换到LAB色彩空间
+    if len(img.shape) == 3:
+        lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+        l, a, b = cv2.split(lab)
+        
+        # 对L通道应用CLAHE
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        l_enhanced = clahe.apply(l)
+        
+        # 合并并转回 BGR
+        lab_enhanced = cv2.merge([l_enhanced, a, b])
+        result = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
+        return result
+    else:
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        return clahe.apply(img)
+
+
+def sharpen_image(img: np.ndarray, strength: float = 1.0) -> np.ndarray:
+    """
+    图像锐化
+    使用Unsharp Mask算法
+    """
+    # 高斯模糊
+    blurred = cv2.GaussianBlur(img, (0, 0), 3)
+    
+    # Unsharp Mask: sharpened = original + strength * (original - blurred)
+    sharpened = cv2.addWeighted(img, 1.0 + strength, blurred, -strength, 0)
+    
+    return sharpened
+
+
+def denoise_image(img: np.ndarray) -> np.ndarray:
+    """
+    图像去噪
+    使用双边滤波（保持边缘）
+    """
+    if len(img.shape) == 3:
+        # 彩色图片使用双边滤波
+        denoised = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
+    else:
+        denoised = cv2.bilateralFilter(img, d=9, sigmaColor=75, sigmaSpace=75)
+    
+    return denoised
+
+
+def auto_white_balance(img: np.ndarray) -> np.ndarray:
+    """
+    自动白平衡
+    使用灰度世界算法
+    """
+    if len(img.shape) != 3:
+        return img
+    
+    # 计算每个通道的均值
+    b, g, r = cv2.split(img.astype(np.float32))
+    avg_b, avg_g, avg_r = np.mean(b), np.mean(g), np.mean(r)
+    
+    # 计算总体均值
+    avg_gray = (avg_b + avg_g + avg_r) / 3
+    
+    # 计算增益
+    scale_b = avg_gray / (avg_b + 1e-6)
+    scale_g = avg_gray / (avg_g + 1e-6)
+    scale_r = avg_gray / (avg_r + 1e-6)
+    
+    # 限制增益范围
+    scale_b = np.clip(scale_b, 0.5, 2.0)
+    scale_g = np.clip(scale_g, 0.5, 2.0)
+    scale_r = np.clip(scale_r, 0.5, 2.0)
+    
+    # 应用增益
+    b = np.clip(b * scale_b, 0, 255)
+    g = np.clip(g * scale_g, 0, 255)
+    r = np.clip(r * scale_r, 0, 255)
+    
+    return cv2.merge([b, g, r]).astype(np.uint8)
+
+
+def enhance_document(img: np.ndarray, 
+                     shadow_removal: bool = True,
+                     contrast_enhance: bool = True, 
+                     sharpen: bool = True,
+                     denoise: bool = True,
+                     white_balance: bool = True,
+                     scan_mode: bool = True) -> dict:
+    """
+    综合文档增强
+    scan_mode=True: 使用文档扫描模式（类似扫描王）
+    scan_mode=False: 使用传统增强流程
+    """
+    result = {
+        "enhanced": False,
+        "shadow_removed": False,
+        "contrast_enhanced": False,
+        "sharpened": False,
+        "denoised": False,
+        "white_balanced": False,
+        "scan_mode": False
+    }
+    
+    processed = img.copy()
+    
+    # 文档扫描模式 - 类似扫描王效果
+    if scan_mode:
+        print("[Enhance] 使用文档扫描模式")
+        processed = document_scan_enhance(processed)
+        result["scan_mode"] = True
+        result["enhanced"] = True
+        result["shadow_removed"] = True
+        result["contrast_enhanced"] = True
+        result["denoised"] = True
+        print("[Enhance] 文档扫描增强完成")
+    else:
+        # 传统增强流程
+        # 1. 去噪（先去噪，避免放大噪声）
+        if denoise:
+            processed = denoise_image(processed)
+            result["denoised"] = True
+            result["enhanced"] = True
+            print("[Enhance] 去噪完成")
+        
+        # 2. 去阴影
+        if shadow_removal:
+            processed = remove_shadow(processed)
+            result["shadow_removed"] = True
+            result["enhanced"] = True
+            print("[Enhance] 去阴影完成")
+        
+        # 3. 白平衡
+        if white_balance:
+            processed = auto_white_balance(processed)
+            result["white_balanced"] = True
+            result["enhanced"] = True
+            print("[Enhance] 白平衡完成")
+        
+        # 4. 对比度增强
+        if contrast_enhance:
+            processed = enhance_contrast(processed)
+            result["contrast_enhanced"] = True
+            result["enhanced"] = True
+            print("[Enhance] 对比度增强完成")
+        
+        # 5. 锐化（最后做）
+        if sharpen:
+            processed = sharpen_image(processed, strength=0.5)
+            result["sharpened"] = True
+            result["enhanced"] = True
+            print("[Enhance] 锐化完成")
+    
+    result["image"] = processed
+    return result
+
+
+def correct_image_process(img_array: np.ndarray, auto_perspective: bool = True, 
+                          auto_rotate: bool = True, auto_crop: bool = True,
+                          enhance: bool = False) -> dict:
+    """
+    综合图片矫正功能
+    """
+    result = {
+        "corrected": False,
+        "perspective_applied": False,
+        "rotation_angle": 0.0,
+        "cropped": False,
+        "enhanced": False
+    }
+    
+    # 转为BGR格式（OpenCV格式）
+    img_bgr = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+    processed = img_bgr.copy()
+    
+    # 1. 透视矫正
+    if auto_perspective:
+        gray = cv2.cvtColor(processed, cv2.COLOR_BGR2GRAY)
+        contour = find_document_contour(gray)
+        
+        if contour is not None:
+            processed = perspective_transform(processed, contour)
+            result["perspective_applied"] = True
+            result["corrected"] = True
+    
+    # 2. 旋转矫正
+    if auto_rotate:
+        processed, angle = detect_and_correct_rotation(processed)
+        if abs(angle) > 0.5:
+            result["rotation_angle"] = round(angle, 2)
+            result["corrected"] = True
+    
+    # 3. 自动裁剪白边
+    if auto_crop:
+        original_size = processed.shape[:2]
+        processed = auto_crop_whitespace(processed)
+        if processed.shape[:2] != original_size:
+            result["cropped"] = True
+            result["corrected"] = True
+    
+    # 4. 图像增强
+    if enhance:
+        enhance_result = enhance_document(processed, scan_mode=True)  # 默认使用扫描模式
+        processed = enhance_result["image"]
+        result["enhanced"] = enhance_result["enhanced"]
+        result["enhance_details"] = {
+            "shadow_removed": enhance_result["shadow_removed"],
+            "contrast_enhanced": enhance_result["contrast_enhanced"],
+            "sharpened": enhance_result["sharpened"],
+            "denoised": enhance_result["denoised"],
+            "white_balanced": enhance_result["white_balanced"],
+            "scan_mode": enhance_result.get("scan_mode", False)
+        }
+        if enhance_result["enhanced"]:
+            result["corrected"] = True
+    
+    # 转回RGB格式
+    result_rgb = cv2.cvtColor(processed, cv2.COLOR_BGR2RGB)
+    result["image"] = result_rgb
+    
+    return result
+
+
+@app.post("/correct-image")
+async def correct_image_api(data: dict):
+    """
+    图片自动矫正接口
+    
+    请求参数:
+        - image: base64编码的图片
+        - auto_perspective: 是否自动透视矫正（默认true）
+        - auto_rotate: 是否自动旋转矫正（默认true）
+        - auto_crop: 是否自动裁剪白边（默认true）
+        - enhance: 是否进行图像增强（去阴影、对比度、锐化、去噪）（默认true）
+    
+    返回:
+        - success: 是否成功
+        - image: 矫正后的base64图片
+        - corrected: 是否进行了矫正
+        - details: 矫正详情
+    """
+    try:
+        image_data = data.get("image")
+        if not image_data:
+            raise HTTPException(status_code=400, detail="缺少image参数")
+        
+        auto_perspective = data.get("auto_perspective", True)
+        auto_rotate = data.get("auto_rotate", True)
+        auto_crop = data.get("auto_crop", True)
+        enhance = data.get("enhance", False)  # 默认关闭增强，避免图像损坏
+        
+        print(f"[Correct] 开始图片矫正 perspective={auto_perspective}, rotate={auto_rotate}, crop={auto_crop}, enhance={enhance}")
+        
+        # 解码图片
+        img_array = decode_image(image_data)
+        print(f"[Correct] 原始图片尺寸: {img_array.shape}")
+        
+        # 执行矫正
+        result = correct_image_process(img_array, auto_perspective, auto_rotate, auto_crop, enhance)
+        
+        # 编码结果
+        result_base64 = image_to_base64(result["image"])
+        
+        enhance_info = f", enhanced={result.get('enhanced', False)}" if enhance else ""
+        print(f"[Correct] 矫正完成: corrected={result['corrected']}, rotation={result['rotation_angle']}{enhance_info}")
+        
+        response = {
+            "success": True,
+            "image": result_base64,
+            "corrected": result["corrected"],
+            "details": {
+                "perspective_applied": result["perspective_applied"],
+                "rotation_angle": result["rotation_angle"],
+                "cropped": result["cropped"],
+                "enhanced": result.get("enhanced", False)
+            }
+        }
+        
+        # 添加增强详情
+        if "enhance_details" in result:
+            response["details"]["enhance_details"] = result["enhance_details"]
+        
+        return response
+        
+    except Exception as e:
+        print(f"[Correct] 错误: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/split")
 async def split_questions(data: dict):
     """
@@ -931,30 +1614,39 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
         '十六': 16, '十七': 17, '十八': 18, '十九': 19, '二十': 20
     }
     
-    # 题号匹配模式（扩展版）
+    # 圆圈数字映射
+    circle_num_map = {
+        '①': 1, '②': 2, '③': 3, '④': 4, '⑤': 5,
+        '⑥': 6, '⑦': 7, '⑧': 8, '⑨': 9, '⑩': 10,
+        '⑪': 11, '⑫': 12, '⑬': 13, '⑭': 14, '⑮': 15
+    }
+    
+    # 题号匹配模式（严格版 - 避免误匹配）
     question_patterns = [
-        # 阿拉伯数字 + 分隔符
-        (r'^\s*(\d{1,2})\s*[\.、．::：]', 'num'),      # 1. 2、 3：4·
-        (r'^\s*(\d{1,2})\s*[,，]?\s*[若设已如当则求]', 'num'),     # 1.若 1,设
+        # 阿拉伯数字 + 分隔符 + 必须有后续内容
+        (r'^\s*(\d{1,2})\s*[\.、．::：]\s*\S', 'num'),      # 1. xxx 2、xxx
+        (r'^\s*(\d{1,2})\s*[,，]?\s*[若设已如当则求证解]', 'num'),     # 1.若 1,设
         
-        # 括号包裹
-        (r'^\s*[（\(]\s*(\d{1,2})\s*[）\)]', 'num'),           # (1) （1）
-        (r'^\s*\[\s*(\d{1,2})\s*\]', 'num'),                          # [1]
-        (r'^\s*\{\s*(\d{1,2})\s*\}', 'num'),                          # {1}
+        # 括号包裹 + 必须有后续内容
+        (r'^\s*[（\(]\s*(\d{1,2})\s*[）\)]\s*\S', 'num'),           # (1) xxx
+        (r'^\s*\[\s*(\d{1,2})\s*\]\s*\S', 'num'),                    # [1] xxx
         
-        # 中文数字
-        (r'^\s*(十[一二三四五六七八九]?)\s*[\.、．::：]', 'chinese'),  # 十、 十一、
-        (r'^\s*([一二三四五六七八九])\s*[\.、．::：]', 'chinese'),   # 一、 二、
+        # 右括号结尾格式
+        (r'^\s*(\d{1,2})\s*[）\)]\s*\S', 'num'),                  # 1）xxx 1) xxx
         
         # 第X题格式
         (r'^\s*第\s*(\d{1,2})\s*题', 'num'),                        # 第1题
         (r'^\s*第\s*([一二三四五六七八九十]+)\s*题', 'chinese'),     # 第一题
         
-        # 带题号的新行
-        (r'^\s*(\d{1,2})\s*$', 'num_only'),                           # 单独的数字行 "1" "2"
+        # 圆圈数字
+        (r'^\s*(①|②|③|④|⑤|⑥|⑦|⑧|⑨|⑩|⑪|⑫|⑬|⑭|⑮)', 'circle'),
+        
+        # 注意：移除了以下容易误匹配的模式：
+        # - 单独的数字行 (容易匹配页码、分数等)
+        # - 中文数字 + 分隔符 (容易匹配大题标题)
     ]
     
-    # 干扰内容过滤
+    # 干扰内容过滤（不应被识别为题目的内容）
     exclude_patterns = [
         r'注意事项', r'考生须知', r'答题须知',
         r'本试[卷题]', r'考试时间', r'满分',
@@ -964,23 +1656,35 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
         r'得分', r'评卷人', r'装订线', r'弥封线'
     ]
     
-    # 大题标题（用于题型识别）
+    # 大题标题模式（这些不应该被识别为小题）
     section_patterns = [
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*(选择|单选|多选)', '选择题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*填空', '填空题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*(解答|计算)', '解答题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*(判断|是非)', '判断题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*简答', '简答题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*论述', '论述题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*词汇', '词汇题'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*阅读', '阅读理解'),
-        (r'[一二三四五六七八九十]+\s*[\.、．]?\s*(写作|作文)', '写作题'),
+        # 中文数字开头的大题标题（必须包含明确的题型关键词）
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*(选择|单选|单项选择|多选|多项选择)', '选择题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*填空', '填空题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*(解答|计算|应用|证明)', '解答题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*(判断|是非)', '判断题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*简答', '简答题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*论述', '论述题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*词汇', '词汇题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*阅读', '阅读理解'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*(写作|作文)', '写作题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*(听力|口语)', '听力题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*完形', '完形填空'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*语法', '语法填空'),
+        
+        # 包含分数说明的大题标题（更精确的匹配）
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*.*本大题共', '大题标题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*.*共\d+小题', '大题标题'),
+        (r'^\s*[一二三四五六七八九十]+\s*[\.、．:：]?\s*.*每题\d+分', '大题标题'),
+        
+        # 英文标题
+        (r'^\s*(Part|Section)\s*[A-Za-z0-9]+', '大题标题'),
     ]
     
     # 识别题型的关键词
     question_type_keywords = {
-        '选择题': ['A\.', 'B\.', 'C\.', 'D\.', 'A．', 'B．', '（\s*）', '\(\s*\)', '选项'],
-        '填空题': ['_+', '—+', '＿+', '填入', '填写'],
+        '选择题': [r'A\.', r'B\.', r'C\.', r'D\.', r'A．', r'B．', r'（\s*）', r'\(\s*\)', '选项'],
+        '填空题': [r'_+', r'—+', r'＿+', '填入', '填写'],
         '判断题': ['对错', '正确', '错误', '√', '×', '对的打', '错的打'],
         '解答题': ['求', '证明', '解答', '计算', '化简'],
         '简答题': ['简述', '说明', '解释', '分析'],
@@ -991,12 +1695,32 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
     current_section_type = None  # 当前大题类型
     used_numbers = set()
     
-    # 注意事项/干扰内容特征
+    # 注意事项/干扰内容特征（增强版）
     noise_keywords = [
-        '答题前', '考生务必', '姓名', '考生号', '考场', '座位',
-        '考试结束', '试卷和答题卡', '一并交回',
-        '本试卷', '考试内容', '必修', '第六章',
-        '注意事项', '答题卡', '密封线'
+        # 试卷说明
+        '答题前', '考生务必', '考生号', '考场', '座位号',
+        '考试结束', '试卷和答题卡', '一并交回', '上交',
+        '本试卷', '考试内容', '必修', '选修',
+        '注意事项', '答题卡', '密封线', '装订线',
+        # 试卷信息
+        '满分', '你拿到的试卷', '共.*题', '共.*分',
+        '考试时间', '答题时间', '分钟',
+        # 答题要求
+        '请务必', '答题卷', '在答题', '用黑色',
+        '2B铅笔', '签字笔', '不得', '禁止',
+        '在此卷上答题无效', '选出.{0,10}答案后',
+        # 题目分数说明（这些不是题目内容）
+        '本大题共', '每题.*分', '每小题.*分', '本题.*分',
+        '共.*分', '每题分数', '分值',
+        # 个人信息区
+        '姓名', '班级', '学校', '准考证',
+        '考号', '学号', '座号',
+        # 页码信息
+        '第.*页', '共.*页',
+        # 评分信息
+        '得分', '评卷人', '开始答题', '答题包括',
+        # 考试类型说明
+        '选择题答案', '非选择题', '答案写在答题卡',
     ]
     
     def extract_question_number(text, pattern, ptype):
@@ -1009,6 +1733,8 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
         
         if ptype == 'chinese':
             return chinese_num_map.get(num_str)
+        elif ptype == 'circle':
+            return circle_num_map.get(num_str)
         else:
             try:
                 return int(num_str)
@@ -1023,21 +1749,35 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
                     return qtype
         return None
     
+    # 记录上一个有效题号，用于连续性检查
+    last_valid_num = 0
+    
     for i, line in enumerate(lines):
         text = line["text"]
         y0 = line["y0"]
         
+        # 清理和规范化文本
+        text = clean_ocr_text(text)
+        
         # 检查是否包含干扰关键词
         is_noise = any(kw in text for kw in noise_keywords)
         if is_noise:
+            print(f"[Split] 跳过干扰内容: {text[:30]}")
             continue
         
-        # 检查是否是大题标题（用于题型识别）
+        # 检查是否是大题标题（大题标题不作为小题）
+        is_section_title = False
         for section_pattern, section_type in section_patterns:
             if re.search(section_pattern, text):
-                current_section_type = section_type
-                print(f"[Split] 识别到大题类型: {section_type}")
+                is_section_title = True
+                if section_type != '大题标题':
+                    current_section_type = section_type
+                print(f"[Split] 识别到大题标题: {section_type} - {text[:30]}")
                 break
+        
+        # 大题标题不作为小题处理
+        if is_section_title:
+            continue
         
         # 检查是否是题号开头
         question_num = None
@@ -1053,6 +1793,24 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
             
             # 验证题号合理性（1-100范围）
             if question_num < 1 or question_num > 100:
+                continue
+            
+            # 题号连续性检查：根据当前大题类型动态调整阈值
+            # 选择题/填空题通常题号连续，解答题可能有较大跳跃
+            max_jump = 10 if current_section_type in ['选择题', '填空题', None] else 15
+            
+            if last_valid_num > 0 and question_num > last_valid_num + max_jump:
+                # 额外检查：如果题号为1，可能是新大题的开始，允许跳跃
+                if question_num == 1:
+                    print(f"[Split] 题号1重新开始，可能是新大题")
+                else:
+                    print(f"[Split] 题号跳跃过大，跳过: {last_valid_num} -> {question_num}, 内容: {text[:30]}")
+                    continue
+            
+            # 内容长度检查：题目内容至少要有一定长度
+            content_after_num = re.sub(r'^\s*\d{1,2}\s*[\.、．::：]?\s*', '', text)
+            if len(content_after_num.strip()) < 2:
+                print(f"[Split] 题目内容过短，跳过: {text}")
                 continue
             
             # 检测题目类型
@@ -1075,6 +1833,7 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
                 "type": detected_type  # 题型
             }
             used_numbers.add(question_num)
+            last_valid_num = question_num  # 更新上一个有效题号
             type_info = f" [类型: {detected_type}]" if detected_type else ""
             print(f"[Split] 识别到题目 {question_num}{type_info}: {text[:30]}")
         
@@ -1125,10 +1884,13 @@ def split_by_question_number(lines: List[dict], img_array: np.ndarray, engine: s
             if cropped.size == 0 or cropped.shape[0] == 0 or cropped.shape[1] == 0:
                 continue
             
-            # 组合文本
+            # 组合文本（避免重复）
             ocr_text = q["first_line"]
             if q["lines"]:
-                ocr_text = "\n".join([q["first_line"]] + [l for l in q["lines"] if l != q["first_line"]])
+                # 过滤掉与 first_line 完全相同的行，避免重复
+                other_lines = [l for l in q["lines"] if l.strip() != q["first_line"].strip()]
+                if other_lines:
+                    ocr_text = q["first_line"] + "\n" + "\n".join(other_lines)
             
             # 智能解析题干和选项
             parsed = parse_question_content(ocr_text)
@@ -1161,6 +1923,9 @@ def parse_question_content(ocr_text: str) -> dict:
     if not ocr_text:
         return {"stem": "", "options": []}
     
+    # 清理和规范化文本
+    ocr_text = clean_ocr_text(ocr_text)
+    
     # 过滤无关内容
     noise_words = [
         '弥封线', '密封线', '装订线', '答题卡', '考生须知',
@@ -1183,12 +1948,18 @@ def parse_question_content(ocr_text: str) -> dict:
     
     clean_text = ' '.join(clean_lines)
     
-    # 更宽松的选项匹配模式：
-    # 1. A. A、A: A． 等标准格式
-    # 2. 单独的 A 后面跟空格或内容
+    # 再次规范化合并后的文本
+    clean_text = normalize_punctuation(clean_text)
+    
+    # 选项匹配模式（规范化后只需匹配标准格式）
+    # 改进：更严格的边界检测，避免误匹配题干中的单个字母
     option_patterns = [
-        r'([A-Da-d])[\.、．::：]\s*',           # 标准格式: A. A、A:
-        r'(?:^|\s)([A-Da-d])\s+(?=[^A-Za-z])',  # 单独字母: A xxx
+        # 标准格式（必须在行首或前面是空格/标点，后面必须有内容）
+        r'(?:^|[\s,，;;；。])\s*([A-Da-d])\.\s+',   # A. xxx
+        # 中文顿号格式
+        r'(?:^|[\s,，;;；。])\s*([A-Da-d])、\s*',  # A、xxx
+        # 括号格式
+        r'[（(]\s*([A-Da-d])\s*[）)]',              # (A) xxx
     ]
     
     # 尝试多种模式
